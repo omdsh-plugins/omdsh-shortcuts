@@ -1,0 +1,11 @@
+# pnpm 10+ blocks any dependency shipping an install/build script until it is
+# explicitly reviewed here. Nothing in this package runs one.
+#
+# Electron is listed and refused rather than absent: this package speaks
+# Electron's accelerator syntax and its menu vocabulary, so it is the dependency
+# somebody reaches for. It is not one — nothing here launches Electron and
+# nothing imports it, the desktop shell restates the wire contract on its own
+# side — and its install script fetches a ~100 MB platform binary that would
+# have nothing to serve.
+allowBuilds:
+  electron: false

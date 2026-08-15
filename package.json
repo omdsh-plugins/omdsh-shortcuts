@@ -1,0 +1,90 @@
+{
+  "name": "@omdsh-plugins/omdsh-shortcuts",
+  "description": "Bind a chord to anything the harness can do: a menu the desktop shell renders natively, a switchboard the runtime dispatches through, and an in-page listener for the web — one document, two surfaces",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omdsh-plugins/omdsh-shortcuts.git"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./contract": {
+      "types": "./lib/types/contract.d.ts",
+      "default": "./lib/contract.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    },
+    "plughub": {
+      "displayName": {
+        "": "Shortcuts",
+        "zh": "快捷键"
+      },
+      "summary": {
+        "": "One chord per command, on the desktop menu and in the page alike.",
+        "zh": "为每个命令绑定一个快捷键，桌面菜单与网页端共用一份配置。"
+      },
+      "category": "input",
+      "settings": [
+        "omdsh-shortcuts"
+      ],
+      "docs": "https://github.com/omdsh-plugins/omdsh-shortcuts#readme",
+      "order": 10
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml",
+    "src/**/*.ts",
+    "README.md",
+    "README.zh.md"
+  ],
+  "scripts": {
+    "build": "tsc --build tsconfig.json && tsdown",
+    "typecheck": "tsc --build tsconfig.json --force && tsc --noEmit -p tsconfig.tests.json",
+    "test": "vitest run",
+    "prepare": "tsc --build tsconfig.json && tsdown"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-runtime": "*",
+    "@deepseek-ai/schemastery": "*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.6",
+    "@deepseek-ai/schemastery": "3.18.1",
+    "@types/node": "^22.20.0",
+    "jsdom": "^26.0.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

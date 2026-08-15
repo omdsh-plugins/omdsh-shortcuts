@@ -1,0 +1,32 @@
+# The omdsh-shortcuts bundle patch: one row, inserted over whatever the profile
+# already composed.
+#
+# This package is a PROFILE LAYER, not a harness edit. `dsh plugin --profile
+# web add @omdsh-plugins/omdsh-shortcuts` installs it into the profile directory
+# and appends it to `dsh.profile.bundles`, so this file is applied after
+# `@deepseek-ai/dsh-base` and `@deepseek-ai/dsh-web-app` — the harness tree
+# stays exactly as it shipped, and removing the plugin removes the row with it.
+#
+# Unlike a UI-only plugin, both halves of this row do real work, and neither is
+# sufficient alone:
+#
+#   - node half (`lib/index.js`) publishes the binding document over the
+#     webserver, holds the `shortcut` switchboard other host plugins register
+#     with, and forwards a desktop menu press to the browser client in front;
+#   - browser half (`lib/client.js`) holds the registry UI plugins register
+#     with, binds the chords this surface is entitled to, and performs what
+#     arrives from the node half.
+#
+# On a surface with no browser — the TUI, headless — the client half is never
+# fetched and the node half still serves the document, which is correct: the
+# menu belongs to a shell, and a shell may be present with no page in it.
+# Conversely a `dsh web` with no Electron anywhere never sees a native menu and
+# the browser half is the whole story. The row is the same either way; which
+# half matters is decided by what is running, not by what was installed.
+#
+# `webServer` is a host service the base bundle already composes; the loader
+# resolves this row after it.
+
+- insert:
+    - id: omdsh-shortcuts
+      name: '@omdsh-plugins/omdsh-shortcuts'
