@@ -47,6 +47,17 @@ export interface BoundChord {
  * @returns true on an exact match.
  */
 export function matchesChord(event: KeyboardEvent, chord: Chord): boolean {
+  // AltGr reports as ctrl+alt on Windows and Linux, and every chord this
+  // package binds for the page is `CmdOrCtrl+Alt+<key>` — so at the modifier
+  // level a command is indistinguishable from a character the layout only
+  // produces with AltGr. On a Polish layout AltGr+L is `ł` and AltGr+O is `ó`,
+  // and neither is a request to open the side chat or add a workspace. The
+  // browser is the one thing that can tell them apart, so ask it.
+  //
+  // Guarded on ctrl-without-meta, which is exactly the AltGr shape: macOS
+  // sends the same chord as cmd+alt with `ctrlKey` false, and some engines set
+  // AltGraph for a bare Option there.
+  if (event.ctrlKey && !event.metaKey && event.getModifierState('AltGraph')) return false
   // Either reading identifies the key: what the keystroke PRODUCED, and what
   // was physically PRESSED. They agree on an unmodified US layout and diverge
   // exactly where a chord would otherwise go missing — `⌥B` produces `∫` on

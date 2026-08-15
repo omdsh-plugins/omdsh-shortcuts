@@ -70,6 +70,24 @@ describe('the physical key, when the produced one is not the pressed one', () =>
     expect(matchesChord(composed('∫', 'KeyB', { metaKey: true, altKey: true }), chord)).toBe(true)
   })
 
+  it('declines an AltGr composition that reports as ctrl+alt', () => {
+    // On a Polish layout AltGr+L produces `ł`, and Windows and Linux report
+    // AltGr as ctrl+alt — the same modifiers `CmdOrCtrl+Alt+L` asks for. A
+    // person typing their own language must not open the side chat.
+    const chord = bind('sideChat', 'CmdOrCtrl+Alt+L').chord
+    expect(matchesChord(
+      composed('ł', 'KeyL', { ctrlKey: true, altKey: true, modifierAltGraph: true }),
+      chord,
+    )).toBe(false)
+    // A real Ctrl+Alt press, which sets no AltGraph, still answers.
+    expect(matchesChord(composed('l', 'KeyL', { ctrlKey: true, altKey: true }), chord)).toBe(true)
+    // macOS sends the chord as cmd+alt, so the guard never reaches it.
+    expect(matchesChord(
+      composed('¬', 'KeyL', { metaKey: true, altKey: true, modifierAltGraph: true }),
+      chord,
+    )).toBe(true)
+  })
+
   it('matches a digit and a punctuation chord the same way', () => {
     expect(matchesChord(
       composed('¡', 'Digit1', { metaKey: true, altKey: true }),
