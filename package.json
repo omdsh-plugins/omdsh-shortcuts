@@ -58,18 +58,21 @@
     }
   },
   "files": [
-    "lib/index.js",
-    "lib/client.js",
+    "lib/*.js",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
     "src/**/*.ts",
     "README.md",
-    "README.zh.md"
+    "README.zh.md",
+    "scripts/**/*.ts"
   ],
   "scripts": {
     "build": "tsc --build tsconfig.json && tsdown",
     "typecheck": "tsc --build tsconfig.json --force && tsc --noEmit -p tsconfig.tests.json",
     "test": "vitest run",
+    "harness:local": "tsx scripts/harness-source.ts --local",
+    "harness:npm": "tsx scripts/harness-source.ts --npm",
+    "check:harness-pin": "tsx scripts/harness-source.ts --check",
     "prepare": "tsc --build tsconfig.json && tsdown"
   },
   "peerDependencies": {
@@ -84,6 +87,7 @@
     "@types/node": "^22.20.0",
     "jsdom": "^26.0.0",
     "tsdown": "^0.22.2",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   }

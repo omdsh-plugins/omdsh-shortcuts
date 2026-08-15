@@ -97,24 +97,35 @@
 
 在运行时里，注册 `runtime` 命令。服务按名字解析而不是用环境里的 `ctx.shortcut`，因为本包两个半边编译成同一个程序，而只有浏览器半边扩展了 cordis 的 `Context`：
 
-```ts
-export const inject = ['shortcut']
+`shortcut` 要在 `apply` 里面拿，绝不能写进顶层 `inject`：本插件在不在 profile
+里，是使用者一条条 `dsh plugin add` 装出来的；而 cordis 对被注入的服务无限期等
+待，所以顶层写了它的 entry 会一直停在 `pending`，两道启动审计会把**整个页面**判
+失败。在 `apply` 里启动的 fiber 不是 loader entry，等多久都没有代价。
 
+```ts
 export function apply(ctx: Context): void {
-  const shortcut = ctx.get('shortcut') as unknown as IShortcut
-  ctx.effect(() => shortcut.register('say-hello', () => { /* ... */ }))
+  ctx.inject(['shortcut'], (sctx) => {
+    const shortcut = sctx.get('shortcut') as unknown as IShortcut | undefined
+    // 当这个名字由一个未激活的 fiber 提供时，这里是可达的。
+    if (shortcut === undefined) return
+    sctx.effect(() => shortcut.register('say-hello', () => { /* ... */ }))
+  })
 }
 ```
 
 在浏览器里，注册 `browser` 命令：
 
 ```ts
-export const inject = ['shortcut']
-
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.shortcut.register('sidechat.open', () => { panel.open() }))
+  ctx.inject(['shortcut'], (sctx) => {
+    if (sctx.get('shortcut') === undefined) return
+    sctx.effect(() => sctx.shortcut.register('sidechat.open', () => { panel.open() }))
+  })
 }
 ```
+
+把 effect 挂在 `sctx` 而不是 `ctx` 上，这样本插件在运行时被卸载时，注册也会随之
+撤回。
 
 注册并不认领任何键。文档里从未声明的命令照样能注册，只是永远不会触发——对于挂在一份没提到它的配置上的插件来说，这正是正确的结果。`ctx.shortcut.bindings()` 会报告每个命令在当前形态下的真实状态，包括哪些在这里没有键、以及为什么；`ctx.shortcut.onBindings(fn)` 在每次文档修订后回调，所以**要把组合键显示出来**的界面（tooltip、设置行）能跟着改绑走，不用刷新。
 

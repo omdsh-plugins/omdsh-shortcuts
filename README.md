@@ -137,24 +137,36 @@ In the runtime, for a `runtime` command. The service is resolved by name rather
 than through an ambient `ctx.shortcut`, because both halves of this package
 compile as one program and only the browser half augments cordis's `Context`:
 
-```ts
-export const inject = ['shortcut']
+`shortcut` is reached from inside `apply`, never from a top-level `inject`:
+whether this plugin is in the profile is a person's `dsh plugin add` decision,
+and cordis's inject wait has no timeout, so a top-level entry naming it sits at
+`pending` and both boot audits fail the WHOLE page. A fiber started inside
+`apply` is not a loader entry, so waiting forever costs nothing.
 
+```ts
 export function apply(ctx: Context): void {
-  const shortcut = ctx.get('shortcut') as unknown as IShortcut
-  ctx.effect(() => shortcut.register('say-hello', () => { /* ... */ }))
+  ctx.inject(['shortcut'], (sctx) => {
+    const shortcut = sctx.get('shortcut') as unknown as IShortcut | undefined
+    // Reachable when the name is provided by a fiber that is not active.
+    if (shortcut === undefined) return
+    sctx.effect(() => shortcut.register('say-hello', () => { /* ... */ }))
+  })
 }
 ```
 
 In the browser, for a `browser` command:
 
 ```ts
-export const inject = ['shortcut']
-
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.shortcut.register('sidechat.open', () => { panel.open() }))
+  ctx.inject(['shortcut'], (sctx) => {
+    if (sctx.get('shortcut') === undefined) return
+    sctx.effect(() => sctx.shortcut.register('sidechat.open', () => { panel.open() }))
+  })
 }
 ```
+
+Hang the effects on `sctx` rather than `ctx`, so unloading this plugin at
+runtime withdraws the registrations with it.
 
 Registering claims no key. A command the document never declares registers fine
 and simply never fires, which is the right outcome for a plugin mounted against

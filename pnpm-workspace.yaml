@@ -1,5 +1,5 @@
 # pnpm 10+ blocks any dependency shipping an install/build script until it is
-# explicitly reviewed here. Nothing in this package runs one.
+# explicitly reviewed here.
 #
 # Electron is listed and refused rather than absent: this package speaks
 # Electron's accelerator syntax and its menu vocabulary, so it is the dependency
@@ -9,3 +9,8 @@
 # have nothing to serve.
 allowBuilds:
   electron: false
+  # A transitive dependency of the build toolchain (tsdown/tsx). Its install
+  # script fetches the platform esbuild binary. Nothing this package ships
+  # reaches it at runtime — the browser bundle is rolldown's, and the node half
+  # is plain ESM.
+  esbuild: true
