@@ -198,6 +198,7 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 | Fork Session | `session.fork` | `CmdOrCtrl+Shift+K` | 同左 | 本插件 |
 | Archive Session | `session.archive` | `CmdOrCtrl+Shift+W` | **无** | 本插件 |
 | Add Workspace | `workspace.add` | `CmdOrCtrl+O` | `CmdOrCtrl+Alt+O` | 本插件 |
+| Remote Connect | `remdev.connect` | `CmdOrCtrl+Shift+C` | `CmdOrCtrl+Alt+C` | `omdsh-remdev` |
 | Search Sessions | `session.search` | `CmdOrCtrl+Shift+F` | 同左 | 本插件（DOM） |
 | Toggle Sidebar | `sidebar.toggle` | `CmdOrCtrl+Shift+B` | `CmdOrCtrl+Alt+B` | 本插件 |
 | Toggle File Panel | `panel.files` | `CmdOrCtrl+Shift+E` | 同左 | `omdsh-sidepanel` |
@@ -212,7 +213,7 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 
 **Web 端那一列只有一条规则：把 `Shift`（或什么都没有）换成 `Alt`。** 需要换的都是浏览器给自己留的键——`⌘,` 是偏好设置、`⌘O` 是打开文件、`⌘1..3` 是切标签、`⌘⇧B` 是书签栏、`⌘L` 是地址栏、`⌘⇧D` 是全部加书签。`Alt` 是没有哪个主流浏览器花在窗口控件上的一层，[`isReservedByBrowser`](src/chord.ts) 也认这一点：按住它，一个组合键就整个离开保留集合。所以一个修饰键回答了整类冲突，不需要一张按浏览器分列的例外表。
 
-没换的那些——`⌘⇧F`、`⌘⇧E`、``Ctrl+` ``、`⌘⇧K`——在 Chrome、Safari、Firefox 里都能抵达页面，再写一遍只是多一个要记的键。唯一完全没有 Web 键的是 `session.archive`：`⌘W` 的每一种写法都属于浏览器，Safari 上连加了 `Alt` 的也是，所以它诚实地只在桌面端有键，而不是绑一个永远不会响应的。
+没换的那些——`⌘⇧F`、`⌘⇧E`、``Ctrl+` ``、`⌘⇧K`——在 Chrome、Safari、Firefox 里都能抵达页面，再写一遍只是多一个要记的键。`remdev.connect` 是相反的情形：它的 `⌘⇧C` 正是 Chrome 和 Safari 分配给「检查元素」的键，所以按规则换成 `⌥⌘C`，而不是和浏览器争一个只有部分标签页会让出来的键。唯一完全没有 Web 键的是 `session.archive`：`⌘W` 的每一种写法都属于浏览器，Safari 上连加了 `Alt` 的也是，所以它诚实地只在桌面端有键，而不是绑一个永远不会响应的。
 
 ## 内置命令
 

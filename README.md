@@ -282,6 +282,7 @@ the menu does not — and the tier below is that UI spending them.
 | Fork Session | `session.fork` | `CmdOrCtrl+Shift+K` | same | this plugin |
 | Archive Session | `session.archive` | `CmdOrCtrl+Shift+W` | **none** | this plugin |
 | Add Workspace | `workspace.add` | `CmdOrCtrl+O` | `CmdOrCtrl+Alt+O` | this plugin |
+| Remote Connect | `remdev.connect` | `CmdOrCtrl+Shift+C` | `CmdOrCtrl+Alt+C` | `omdsh-remdev` |
 | Search Sessions | `session.search` | `CmdOrCtrl+Shift+F` | same | this plugin (DOM) |
 | Toggle Sidebar | `sidebar.toggle` | `CmdOrCtrl+Shift+B` | `CmdOrCtrl+Alt+B` | this plugin |
 | Toggle File Panel | `panel.files` | `CmdOrCtrl+Shift+E` | same | `omdsh-sidepanel` |
@@ -305,9 +306,12 @@ exceptions.
 
 The ones NOT restated — `⌘⇧F`, `⌘⇧E`, ``Ctrl+` ``, `⌘⇧K` — reach a page in
 Chrome, Safari and Firefox alike, and a second spelling would be a second key to
-remember for no gain. The one item with no web chord at all is
-`session.archive`: every `⌘W` spelling belongs to the browser, `Alt` included in
-Safari, so it is honestly native-only rather than dishonestly bound.
+remember for no gain. `remdev.connect` is the reverse case: its `⌘⇧C` is the
+chord Chrome and Safari give inspect-element, so it is restated as `⌥⌘C`
+rather than racing the browser for a key only some tabs would hand over. The
+one item with no web chord at all is `session.archive`: every `⌘W` spelling
+belongs to the browser, `Alt` included in Safari, so it is honestly
+native-only rather than dishonestly bound.
 
 ## The built-in commands
 
