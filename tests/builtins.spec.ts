@@ -78,10 +78,10 @@ describe('what it registers', () => {
       UI_COMMANDS.toggleDetails, UI_COMMANDS.settings, UI_COMMANDS.settingsPlugins,
       UI_COMMANDS.modeChat, UI_COMMANDS.modeWork, UI_COMMANDS.modeCode,
     ]) expect(registered.has(id)).toBe(true)
-    // The three whose behaviour belongs to a plugin that can register for
+    // The four whose behaviour belongs to a plugin that can register for
     // itself. Taking them here would be this package claiming a behaviour it
     // does not own, and would beat the owner to the id.
-    for (const id of [UI_COMMANDS.filePanel, UI_COMMANDS.terminal, UI_COMMANDS.sideChat]) {
+    for (const id of [UI_COMMANDS.filePanel, UI_COMMANDS.terminal, UI_COMMANDS.sideChat, UI_COMMANDS.remdevConnect]) {
       expect(registered.has(id)).toBe(false)
     }
   })

@@ -68,6 +68,7 @@ describe('the contributed document', () => {
       [UI_COMMANDS.modeCode]: WEB_ACCELERATORS.modeCode,
       [UI_COMMANDS.toggleDetails]: WEB_ACCELERATORS.toggleDetails,
       [UI_COMMANDS.sideChat]: WEB_ACCELERATORS.sideChat,
+      [UI_COMMANDS.remdevConnect]: WEB_ACCELERATORS.remdevConnect,
     })
     // Every substitution is the same one — Alt for Shift, or Alt added — which
     // is what makes the second map memorable instead of a lookup table.
@@ -89,6 +90,16 @@ describe('the contributed document', () => {
     expect(chords['new-window']).toBe(SHELL_ACCELERATORS.newWindow)
     expect(chords['restart-runtime']).toBe(SHELL_ACCELERATORS.restartRuntime)
     expect(chords['idle-suspend']).toBe(SHELL_ACCELERATORS.idleSuspend)
+  })
+
+  it('binds Remote Connect to Shift+C natively, swapping to Alt+C in a tab', () => {
+    const connect = DEFAULT_ITEMS.find(item => item.id === UI_COMMANDS.remdevConnect)
+    expect(connect?.accelerator).toBe(UI_ACCELERATORS.remdevConnect)
+    expect(connect?.webAccelerator).toBe(WEB_ACCELERATORS.remdevConnect)
+    // ⇧⌘C is Chrome's and Safari's inspect-element chord, so a tab gets the
+    // substituted spelling rather than a key the browser may never hand over.
+    expect(claimFor(connect as MenuItem, 'desktop').holder).toBe('native')
+    expect(claimFor(connect as MenuItem, 'web').holder).toBe('page')
   })
 
   it('renders the idle setting as a checkbox, because the shell owns its state', () => {

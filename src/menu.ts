@@ -71,6 +71,8 @@ export const UI_ACCELERATORS = {
   archiveSession: 'CmdOrCtrl+Shift+W',
   /** Summon the side chat. */
   sideChat: 'CmdOrCtrl+L',
+  /** Open the Remote Connect dialog. */
+  remdevConnect: 'CmdOrCtrl+Shift+C',
 } as const
 
 /**
@@ -85,10 +87,14 @@ export const UI_ACCELERATORS = {
  *
  * Only the genuinely-claimed ones are listed. `CmdOrCtrl+Shift+F`, `Shift+E`,
  * `Ctrl+\`` and `Shift+K` reach a page in Chrome, Safari and Firefox alike, so
- * restating them here would be a second key to remember for no gain. The one
- * item with no web chord at all is `session.archive`: every `⌘W` spelling
- * belongs to the browser, `Alt` included in Safari, so it is honestly
- * native-only rather than dishonestly bound.
+ * restating them here would be a second key to remember for no gain.
+ * `session.remdevConnect` is listed for a claim the deliberately-short reserved
+ * set cannot express: `CmdOrCtrl+Shift+C` is the chord Chrome and Safari give
+ * inspect-element, so a page may never be handed it. Restating it as
+ * `CmdOrCtrl+Alt+C` keeps the one rule rather than racing the browser for a
+ * key only some tabs would hand over. The one item with no web chord at all is
+ * `session.archive`: every `⌘W` spelling belongs to the browser, `Alt` included
+ * in Safari, so it is honestly native-only rather than dishonestly bound.
  */
 export const WEB_ACCELERATORS = {
   toggleSidebar: 'CmdOrCtrl+Alt+B',
@@ -100,6 +106,7 @@ export const WEB_ACCELERATORS = {
   modeCode: 'CmdOrCtrl+Alt+3',
   toggleDetails: 'CmdOrCtrl+Alt+D',
   sideChat: 'CmdOrCtrl+Alt+L',
+  remdevConnect: 'CmdOrCtrl+Alt+C',
 } as const
 
 /**
@@ -129,6 +136,7 @@ export const UI_COMMANDS = {
   modeWork: 'mode.work',
   modeCode: 'mode.code',
   sideChat: 'sidechat.open',
+  remdevConnect: 'remdev.connect',
 } as const
 
 /** The items this plugin contributes when its config names no others. */
@@ -200,6 +208,14 @@ export const DEFAULT_ITEMS: readonly MenuItem[] = [
     command: { kind: 'browser' },
     accelerator: UI_ACCELERATORS.addWorkspace,
     webAccelerator: WEB_ACCELERATORS.addWorkspace,
+  },
+  {
+    id: UI_COMMANDS.remdevConnect,
+    label: 'Remote Connect',
+    section: 'file',
+    command: { kind: 'browser' },
+    accelerator: UI_ACCELERATORS.remdevConnect,
+    webAccelerator: WEB_ACCELERATORS.remdevConnect,
   },
   {
     id: UI_COMMANDS.search,
