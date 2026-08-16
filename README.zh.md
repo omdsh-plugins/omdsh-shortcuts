@@ -1,10 +1,21 @@
-# `@omdsh-plugins/omdsh-shortcuts`
+# omdsh-shortcuts
 
 [English](README.md) | 中文
 
-用一份文档，为 harness 能做的任何事绑定组合键——两种形态都算。
+用一份文档，为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 能做的任何事绑定组合键——两种形态都算。
 
 挂载这个插件，菜单出现、一组键开始生效；卸载它，两者一起消失；改它的配置，两者就地重建。这些都不需要重新构建或重启桌面外壳，也都不是对 harness 的改动。
+
+## 它提供什么
+
+| 界面 | 从哪来 |
+|---|---|
+| 桌面外壳的原生菜单，以及上面的每一个加速键 | `GET /api/desktop/menu` 提供的那份文档，并在每次修订时经 `GET /api/desktop/menu.events` 再推一遍 |
+| 一次原生按键，送达真正在前台的那个页面 | 外壳 `POST /api/desktop/menu.invoke`，再经 `GET /api/desktop/shortcut.events?client=<id>` 下发给最近报告过焦点的客户端 |
+| Web 端的页内组合键——那里没有菜单来认领它们 | 浏览器半边自己的按键监听器，按同一份文档绑定本形态的组合键 |
+| 运行时和页面里都有的 `shortcut` 服务 | 两个半边各自 `ctx.reflect.provide('shortcut', …)`：`register`、`bindings()`、`onBindings`、`chordLabel` |
+| 十五个界面命令里的十二个，由它执行 | [`src/client/builtins.ts`](src/client/builtins.ts)，调用 `layout`、`sessions`、`workspaces` 和 `sessionModes`——另外三个属于拥有它们的插件 |
+| 插件中心里的改键表单 | `omdsh-shortcuts` 这个 settings 命名空间：一张扁平的 `id → 组合键` 字典，即时生效 |
 
 ## 核心想法
 
@@ -39,7 +50,7 @@
 | 写字符串 | 改用这个键 |
 | 写 `null` | 这里完全不绑键；菜单项还在，鼠标仍可达 |
 
-**在 `webAccelerator` 里写一个浏览器保留键，是挂载时报错**，而不是一个默默什么都不做的键。而只写了原生 `accelerator` 则不算错——Web 端只是把这条绑定报告为 `unreachable`，设置界面可以据此显示「仅桌面端」。
+**在 `webAccelerator` 里写一个浏览器保留键，是挂载时报错**，而不是一个默默什么都不做的键：在标签页里要 `⌘W`，是一个页面根本无法兑现的请求，拒绝它是唯一诚实的回答。而只写了原生 `accelerator` 则不算错——Web 端只是把这条绑定报告为 `unreachable`，设置界面可以据此显示「仅桌面端」。
 
 ## 它持有的路由
 
@@ -154,7 +165,7 @@ const hint = chord === undefined ? t('files.open') : `${t('files.open')} · ${ch
 - **形态说了算**——桌面端显示原生键 `⌘1`，标签页里显示 `⌥⌘1`，因为那才是各自真正能收到的键。
 - **没有键就返回 `undefined`**——所以 tooltip 落回纯标题，而不是留一个后面什么都没有的分隔符。浏览器占走了键的那些命令，在标签页里就是这个状态。
 
-配合 `onBindings` 使用：文档是推下来的，所以第一次读通常是空的；改绑之后也要跟着变。仓库里 `omdsh-sidepanel` 的两个面板开关、`omdsh-justchat` 与 `omdsh-code` 的模式段、以及 `omdsh-sidechat` 的召唤图标都是这么做的。
+配合 `onBindings` 使用：文档是推下来的，所以第一次读通常是空的；改绑之后也要跟着变。仓库里 `omdsh-sidepanel` 的两个面板开关、`omdsh-justchat` 与 `omdsh-code` 的模式段都是这么做的。`omdsh-sidechat` 的召唤图标走的是更下面一层的路——它自己读 `bindings()` 再把 claim 格式化出来，因为它要知道的是这个键**由谁**持有，而不只是怎么把它印出来。
 
 harness 自己的按钮（New Session、搜索、添加工作区、设置、折叠侧栏）不在其中：它们的 tooltip 组件在本仓库不改的包里。桌面端这些键本来就写在菜单栏上。
 
@@ -167,13 +178,15 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 
 ### 外壳层：`shell` 命令
 
-| 项 | 组合键 | 分区 |
-|---|---|---|
-| New Window | `CmdOrCtrl+N` | file |
-| Restart Harness Runtime | `CmdOrCtrl+Alt+R` | view |
-| Open in Browser | `CmdOrCtrl+Shift+O` | view |
-| Reveal Runtime Log | `CmdOrCtrl+Shift+L` | view |
-| Release Memory When Idle | `CmdOrCtrl+Alt+M` | app |
+| 项 | id | 组合键 | 分区 |
+|---|---|---|---|
+| New Window | `new-window` | `CmdOrCtrl+N` | file |
+| Restart Harness Runtime | `restart-runtime` | `CmdOrCtrl+Alt+R` | view |
+| Open in Browser | `open-in-browser` | `CmdOrCtrl+Shift+O` | view |
+| Reveal Runtime Log | `reveal-log` | `CmdOrCtrl+Shift+L` | view |
+| Release Memory When Idle | `idle-suspend` | `CmdOrCtrl+Alt+M` | app |
+
+改键时写的是 id，而 `idle-suspend` 是唯一一个和它的命令名不一样的：菜单项是 `idle-suspend`，它向外壳要的那个能力叫 `toggle-idle-suspend`，它也是这一组里唯一的复选框。
 
 五项全是 `shell` 命令，所以五项全都只在桌面端有效：标签页里没有 Electron 可供组合键抵达。三个层级是让这份映射好记的原因——单修饰键是标准窗口操作，`Shift` 通向外壳的界面或目的地，`Alt` 通向运行时进程，也就是 Electron 自己放开发者工具的那一层。整份映射刻意避开可打印字符，因为窗口里的 harness 界面拥有菜单不占用的每一个键——下面这一层花的正是那些键。
 
@@ -199,17 +212,17 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 
 **Web 端那一列只有一条规则：把 `Shift`（或什么都没有）换成 `Alt`。** 需要换的都是浏览器给自己留的键——`⌘,` 是偏好设置、`⌘O` 是打开文件、`⌘1..3` 是切标签、`⌘⇧B` 是书签栏、`⌘L` 是地址栏、`⌘⇧D` 是全部加书签。`Alt` 是没有哪个主流浏览器花在窗口控件上的一层，[`isReservedByBrowser`](src/chord.ts) 也认这一点：按住它，一个组合键就整个离开保留集合。所以一个修饰键回答了整类冲突，不需要一张按浏览器分列的例外表。
 
-没换的那些——`⌘⇧F`、`⌘⇧E`、``Ctrl+` ``、`⌘⇧K`——在 Chrome、Safari、Firefox 里都能抵达页面，再写一遍只是多一个要记的键。唯一完全没有 Web 键的是 `session.archive`：`⌘W` 的每一种写法都属于浏览器，加了 `Alt` 在 Safari 里也是「关闭其他标签页」，所以它诚实地只在桌面端有键，而不是绑一个永远不会响应的。
+没换的那些——`⌘⇧F`、`⌘⇧E`、``Ctrl+` ``、`⌘⇧K`——在 Chrome、Safari、Firefox 里都能抵达页面，再写一遍只是多一个要记的键。唯一完全没有 Web 键的是 `session.archive`：`⌘W` 的每一种写法都属于浏览器，Safari 上连加了 `Alt` 的也是，所以它诚实地只在桌面端有键，而不是绑一个永远不会响应的。
 
 ## 内置命令
 
 上表「由谁执行」写着**本插件**的那些，handler 就在这个包的浏览器半边（[`src/client/builtins.ts`](src/client/builtins.ts)）。这与本插件其余部分的姿态相反，值得解释：
 
-大多数界面动作背后都有服务可调——`ctx.layout` 管两侧栏，`ctx.sessions` 和 `ctx.workspaces` 管会话与工作区，`omdsh-justchat` 的 `sessionModes` 管模式切换。harness 没有为它们注册快捷键，是因为 harness 里根本没有快捷键服务可注册——这个服务是从外面来的。所以调用总得有人发起，而知道「键被按了」的只有这里。
+大多数界面动作背后都有服务可调——`ctx.layout` 管两侧栏，`ctx.sessions` 和 `ctx.workspaces` 管会话与工作区，`omdsh-base` 的 `sessionModes` 管模式切换。harness 没有为它们注册快捷键，是因为 harness 里根本没有快捷键服务可注册——这个服务是从外面来的。所以调用总得有人发起，而知道「键被按了」的只有这里。
 
 三个例外只能走 DOM：**设置弹窗**、**Plugins 页**、**侧栏搜索框**。它们的开关状态用 harness 自己的话说是 "component-local viewing state"，住在本仓库不会去改的包里。[`src/client/anchors.ts`](src/client/anchors.ts) 写明了为什么这些地址仍然可辩护——用的全是框架保证的契约（每个 slot 出口都会渲染的 `data-slot`、frame 自己的 `data-sidebar-collapsed` / `data-details-collapsed`、以及 `role="dialog"` 这类无障碍属性），而不是 CSS module 的哈希类名、会被本地化的可见文字、或者渲染顺序。唯一绕不开顺序的地方——从设置导航栏里挑出 Plugins 那一行——是从 slot 注册表里读出它的**下标**，所以被匹配的仍然是 id，DOM 只提供位置。
 
-每个 handler 在它要驱动的东西不存在时都是安静的空操作。没装 `omdsh-justchat` 的组装里按 `⌘1` 就该什么都不发生——不抛异常，也不能把整个按键监听器一起带走。
+每个 handler 在它要驱动的东西不存在时都是安静的空操作。模式注册表属于 [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base)，里面的各个段落则来自各个模式插件：没装 `omdsh-base` 就根本没有注册表，`⌘1` 谁也够不到；装了 `omdsh-base` 但没装 `omdsh-justchat`，注册表只是少了 Chat 和 Work 两段，`⌘1`、`⌘2` 找不到可进入的对象。两种情况下这次按键都该什么都不发生——不抛异常，也不能把整个按键监听器一起带走。
 
 `panel.files`、`panel.terminal`、`sidechat.open` **不在**这个文件里：这三件事有能自己注册的主人，它们就该自己注册。
 
@@ -220,7 +233,7 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 | 字段 | 归属 | 在哪里改 |
 |---|---|---|
 | `items` | 组装层 | profile 的 `cordis.patch.yml` |
-| `bindings` | 使用者 | 设置 → Plugins → OMDSH 插件 |
+| `bindings` | 使用者 | 设置 → 插件 → OMDSH 插件 |
 
 `items` 说的是有哪些命令、显示成什么、进哪个菜单、由谁执行。`bindings` 是盖在它上面的一张扁平 `id → 快捷键` 映射：
 
@@ -240,7 +253,7 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 
 映射里出现文档中没有的 id 时会被忽略而不是拒绝：item 列表属于组装层，它会变，一条过期的覆盖绝不能让这个插件挂不上去。而解析不了的组合键**会**被拒绝，在那次写入时就拒绝——因为再怎么改 item 列表，`Ctrl+` 也不会变得合法。
 
-这个插件把 `bindings` 注册为 settings 命名空间 `omdsh-shortcuts`（见 [omdsh 插件约定](https://github.com/omdsh-plugins/omdsh-plugins/blob/HEAD/CONVENTIONS.zh.md)），这就是 [`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub) 为它生成配置页所需要的全部。这段注册挂在一个受限 fiber 上，因此一个没有 settings provider 的组装照旧按 entry config 运行。
+这个插件把 `bindings` 注册为 settings 命名空间 `omdsh-shortcuts`（见 [omdsh 插件约定](https://omdsh-plugins.github.io/conventions/#rule-1)），这就是 [`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub) 为它生成配置页所需要的全部。这段注册挂在一个受限 fiber 上，因此一个没有 settings provider 的组装照旧按 entry config 运行。
 
 改绑**即时生效**：文档会被重建并推给已经开着的那几条流，于是每个连着的外壳重建原生菜单、每个连着的页面重绑按键，都不需要重启。
 
@@ -253,20 +266,49 @@ invoke 路由没有信任围栏。约束它的有两点：只接受已发布文�
 它是一个 dsh bundle，不是对 harness 的改动。[`cordis.patch.yml`](cordis.patch.yml) 在 profile 已经组装好的东西之上插入一行：
 
 ```sh
-pnpm run build                                    # 本地路径安装不会执行 prepare
+dsh plugin --profile web add @omdsh-plugins/omdsh-shortcuts
+```
+
+或者从一份检出安装，改这个插件本身时要的就是这种：
+
+```sh
+pnpm install && pnpm run build                    # 本地路径安装不会执行 prepare
 dsh plugin --profile web add <本包路径>
 ```
 
 两个半边都在做实事，缺一不可：node 半边发布文档并转接按键，浏览器半边持有注册表并绑定本形态的组合键。没有浏览器的形态下客户端半边根本不会被拉取；而在没有 Electron 的 `dsh web` 上，浏览器半边就是全部。
 
+移除也是同一种写法：
+
+```sh
+dsh plugin --profile web remove @omdsh-plugins/omdsh-shortcuts
+```
+
+这一行卸载时，每条开着的流都会收到一份空文档，于是外壳立刻退回平台自带的菜单、每个页面立刻解绑按键，而不是等到某个已经没人回答的请求之后。
+
+**旁边不需要装别的东西，它伸手去够的东西也都不是必需的。** 宿主半边只 inject `webServer`，浏览器半边只 inject `slots`；它用到的其他名字——`omdsh-base` 的 `sessionModes`，`omdsh-sidepanel` 和 `omdsh-sidechat` 注册的那些 handler——全都是在 `apply` 里面读的，缺了就自己回答。一个只装了这个插件的 profile 能组装、能启动：菜单在、每个键都绑得上，只是那些主人不在场的命令是安静的空操作。反过来也一样——一个把这个插件拿掉的 profile，`omdsh-sidepanel` 和 `omdsh-sidechat` 都还站着，各自把自己的键拿回去。
+
 ## 命令
 
 ```sh
+pnpm install
 pnpm run build       # tsc 出 lib/types，再由 tsdown 打包两个半边
 pnpm run typecheck   # 源码与测试
 pnpm run test        # vitest
+pnpm run harness:local ../../deepseek-harness   # 对着一份 checkout 编译
+pnpm run harness:npm                            # 切回提交下来的版本号
+pnpm run check:harness-pin                      # 只要还链着就失败
 ```
 
 ## 它从哪里来
 
 从 [`omdsh-desktop`](https://github.com/omdsh-plugins/omdsh-desktop) 拆出，原为 `app/src/menu.ts`。决策记录见 harness fork 的 `legacy/all-in-one` 分支上的 Agent Note `2026-08-13-electron-desktop-application`。
+
+## 已知限制
+
+- **`shell` 那一层只在桌面端。** 那五项都要 Electron 主进程来执行，所以在 `dsh web` 下它们整体不存在——既没有菜单来渲染，也没有哪个组合键能够到任何东西。
+- **`session.archive` 没有 Web 键。** `⌘W` 的每一种写法都属于浏览器，加 `Alt` 也一样，所以标签页里它报告为 `unreachable`，而不是绑一个反而会关掉窗口的键。
+- **浏览器保留的组合键给不了标签页。** `⌘N`、`⌘T`、`⌘W`、`⌘Q` 永远到不了页面，所以 `webAccelerator` 在挂载时就会拒绝它们。解法是 Web 端换一个键，而不是想办法绕过去。
+- **invoke 路由没有信任围栏。** 它的可达范围就是 webserver 的监听地址，桌面端是回环，`dsh web` 下则未必；要注册破坏性操作的插件应当知道这一点。
+- **三个内置命令要走 DOM。** 设置弹窗、它的 Plugins 页和侧栏搜索框没有服务可调，只能靠框架保证的契约来驱动——`data-slot`、frame 自己的折叠属性、无障碍 role。上游改了标记，这个包就得跟着改选择器。
+- **`items` 属于组装层，不是一个设置项。** 有哪些命令、显示成什么、由谁执行，都在 profile 的 `cordis.patch.yml` 里改；插件中心只提供 `bindings`。往菜单里加一个命令，不是一个人在面板里能做的事。

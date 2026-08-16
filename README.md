@@ -1,14 +1,26 @@
-# `@omdsh-plugins/omdsh-shortcuts`
+# omdsh-shortcuts
 
 English | [中文](README.zh.md)
 
-Bind a chord to anything the harness can do, from one document, across both
-surfaces it runs on.
+Bind a chord to anything the
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) can do, from
+one document, across both surfaces it runs on.
 
 Mounting this plugin makes a menu appear and a set of keys start working;
 unmounting it takes both away; editing its configuration rebuilds them in
 place. None of that rebuilds or restarts the desktop shell, and none of it is a
 harness edit.
+
+## What it adds
+
+| Surface | Where it comes from |
+|---|---|
+| The desktop shell's native menu, and every accelerator on it | The document served over `GET /api/desktop/menu`, pushed again on `GET /api/desktop/menu.events` at every revision |
+| A native press arriving in the page that is actually in front | `POST /api/desktop/menu.invoke` from the shell, then `GET /api/desktop/shortcut.events?client=<id>` down to the client that last reported focus |
+| In-page chords on the web, where there is no menu to claim them | The browser half's own key listener, binding this surface's chords from the same document |
+| The `shortcut` service, in the runtime and in the page alike | `ctx.reflect.provide('shortcut', …)` on both halves: `register`, `bindings()`, `onBindings`, `chordLabel` |
+| Twelve of the fifteen UI commands, performed | [`src/client/builtins.ts`](src/client/builtins.ts), calling `layout`, `sessions`, `workspaces` and `sessionModes` — the other three belong to the plugins that own them |
+| A rebinding form in the plugin hub | The `omdsh-shortcuts` settings namespace: a flat `id → chord` dictionary, applied live |
 
 ## The idea
 
@@ -56,10 +68,12 @@ perfectly good native binding for `new-window` and a key a tab is never handed.
 | a string | that chord instead |
 | `null` | no chord at all; still on the menu, still reachable by mouse |
 
-Naming a chord the browser reserves is a **fault at mount**, not a key that
-quietly does nothing. Leaving a native-only `accelerator` alone is not — the
-web surface simply reports the binding as `unreachable`, which a settings
-surface can render as "native only".
+Writing a chord the browser reserves into `webAccelerator` is a **fault at
+mount**, not a key that quietly does nothing: asking for `⌘W` in a tab is a
+request the page cannot honour, and refusing it is the only honest answer.
+Leaving a native-only `accelerator` alone is not a fault — the web surface
+simply reports that binding as `unreachable`, which a settings surface can
+render as "native only".
 
 ## The routes it holds
 
@@ -212,8 +226,10 @@ Three things it settles, so no surface redoes them:
 
 Pair it with `onBindings`: the document is pushed, so the first read is usually
 empty, and a rebinding has to reach the tooltip too. `omdsh-sidepanel`'s two panel
-switches, `omdsh-justchat`'s and `omdsh-code`'s mode segments, and
-`omdsh-sidechat`'s summon icon all do exactly this.
+switches and `omdsh-justchat`'s and `omdsh-code`'s mode segments all do exactly
+this. `omdsh-sidechat`'s summon icon reaches the same place by the lower road —
+it reads `bindings()` itself and formats the claim, because it wants to know
+WHO holds the chord and not only how to print it.
 
 The harness's own buttons — New Session, search, add workspace, settings,
 collapse sidebar — are deliberately not among them: their tooltip components
@@ -238,13 +254,17 @@ examples ship in this repository:
 
 ### The shell tier: `shell` commands
 
-| Item | Chord | Section |
-|---|---|---|
-| New Window | `CmdOrCtrl+N` | file |
-| Restart Harness Runtime | `CmdOrCtrl+Alt+R` | view |
-| Open in Browser | `CmdOrCtrl+Shift+O` | view |
-| Reveal Runtime Log | `CmdOrCtrl+Shift+L` | view |
-| Release Memory When Idle | `CmdOrCtrl+Alt+M` | app |
+| Item | id | Chord | Section |
+|---|---|---|---|
+| New Window | `new-window` | `CmdOrCtrl+N` | file |
+| Restart Harness Runtime | `restart-runtime` | `CmdOrCtrl+Alt+R` | view |
+| Open in Browser | `open-in-browser` | `CmdOrCtrl+Shift+O` | view |
+| Reveal Runtime Log | `reveal-log` | `CmdOrCtrl+Shift+L` | view |
+| Release Memory When Idle | `idle-suspend` | `CmdOrCtrl+Alt+M` | app |
+
+The id is what a rebinding names, and `idle-suspend` is the one that does not
+read like its command: the item is `idle-suspend`, the capability it asks the
+shell for is `toggle-idle-suspend`, and it is the only checkbox in the set.
 
 All five are `shell` commands, so all five are desktop-only: there is no
 Electron in a tab for a chord to reach. The tiers are what keep the map
@@ -297,7 +317,7 @@ of the posture the rest of this package takes, and worth the explanation:
 
 most UI actions have a service behind them — `ctx.layout` for the columns,
 `ctx.sessions` and `ctx.workspaces` for conversations and projects,
-`omdsh-justchat`'s `sessionModes` for the switch. Nothing in the harness
+`omdsh-base`'s `sessionModes` for the switch. Nothing in the harness
 registers a shortcut for them because the harness has no shortcut service to
 register with; this one arrives from outside it. So the call has to be made from
 somewhere, and here is the only place that knows the chord was pressed.
@@ -314,9 +334,13 @@ place order is unavoidable, picking the Plugins row out of the settings nav,
 reads its INDEX from the slot registry, so the id stays the thing being matched
 and the DOM supplies nothing but position.
 
-Every handler is a quiet no-op when the thing it drives is absent. Pressing `⌘1`
-in a composition without `omdsh-justchat` should do nothing at all — not throw,
-and not take the whole key listener down with it.
+Every handler is a quiet no-op when the thing it drives is absent. The mode
+registry belongs to [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base),
+and the segments it holds arrive from the mode plugins: without `omdsh-base`
+there is no registry at all and `⌘1` reaches nothing, and with it but without
+`omdsh-justchat` the registry is simply missing the Chat and Work segments, so
+`⌘1` and `⌘2` find nobody to enter. Either way the press should do nothing at
+all — not throw, and not take the whole key listener down with it.
 
 `panel.files`, `panel.terminal` and `sidechat.open` are deliberately NOT in that
 file: those behaviours have owners that can register for themselves, and do.
@@ -364,7 +388,7 @@ plugin from mounting. A chord that does not parse IS refused, at the write that
 would store it, because no item list makes `Ctrl+` valid later.
 
 This plugin registers `bindings` as the settings namespace `omdsh-shortcuts`
-(see [the omdsh conventions](https://github.com/omdsh-plugins/omdsh-plugins/blob/HEAD/CONVENTIONS.md)), which is the whole of what
+(see [the omdsh conventions](https://omdsh-plugins.github.io/conventions/?lang=en#rule-1)), which is the whole of what
 [`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub) needs to render it a configuration page.
 The registration rides a scoped fiber, so a composition with no settings
 provider runs on its entry config exactly as before.
@@ -383,13 +407,19 @@ desktop and may not be under `dsh web`. A plugin registering something
 destructive should know that. The seam if a fence is wanted is `webRuntime`,
 the way [`omdsh-sidepanel`](https://github.com/omdsh-plugins/omdsh-sidepanel/blob/HEAD/src/trust-fence.ts) reads it.
 
-## Installing it
+## Install
 
 A dsh bundle, not a harness edit. [`cordis.patch.yml`](cordis.patch.yml) adds
 one row over whatever the profile already composed:
 
 ```sh
-pnpm run build                                    # a local path install never runs prepare
+dsh plugin --profile web add @omdsh-plugins/omdsh-shortcuts
+```
+
+Or from a checkout, when you are working on the plugin itself:
+
+```sh
+pnpm install && pnpm run build                    # a local path install never runs prepare
 dsh plugin --profile web add <path-to-this-package>
 ```
 
@@ -399,12 +429,36 @@ binds this surface's chords. On a surface with no browser the client half is
 never fetched; on a `dsh web` with no Electron the browser half is the whole
 story.
 
+Remove it the same way:
+
+```sh
+dsh plugin --profile web remove @omdsh-plugins/omdsh-shortcuts
+```
+
+Every open stream is told the document is empty as the row unloads, so the
+shell drops back to the platform's own menu and every page unbinds its keys at
+once, rather than after a request there is nothing left to answer.
+
+**Nothing else has to be installed beside it, and nothing it reaches for is
+required.** The host half injects `webServer` alone and the browser half
+`slots`; every other name it uses — `sessionModes` from `omdsh-base`, the
+handlers `omdsh-sidepanel` and `omdsh-sidechat` register — is read from inside
+`apply` and answered for when it is missing. A profile with only this plugin
+composes and boots: the menu is there, every chord binds, and the commands whose
+owners are absent are quiet no-ops. The same holds in the other direction — a
+profile that drops this plugin leaves `omdsh-sidepanel` and `omdsh-sidechat`
+standing, each with its own key back.
+
 ## Commands
 
 ```sh
+pnpm install
 pnpm run build       # tsc to lib/types, then tsdown for both halves
 pnpm run typecheck   # sources and tests
 pnpm run test        # vitest
+pnpm run harness:local ../../deepseek-harness   # build against a checkout
+pnpm run harness:npm                            # back to the committed pin
+pnpm run check:harness-pin                      # fails while anything is linked
 ```
 
 ## Where it came from
@@ -412,3 +466,28 @@ pnpm run test        # vitest
 Split out of [`omdsh-desktop`](https://github.com/omdsh-plugins/omdsh-desktop), originally `app/src/menu.ts`.
 The decision record is the Agent Note `2026-08-13-electron-desktop-application`
 on the harness fork's `legacy/all-in-one` branch.
+
+## Known limitations
+
+- **The `shell` tier is desktop-only.** All five of those items need the
+  Electron main process to perform them, so under `dsh web` they are absent from
+  the page entirely — there is no menu to render them on and no chord that would
+  reach anything.
+- **`session.archive` has no web chord.** Every `⌘W` spelling belongs to the
+  browser, `Alt` included, so a tab reports it `unreachable` rather than binding
+  a key that would close the window instead.
+- **A chord the browser reserves cannot be given to a tab.** `⌘N`, `⌘T`, `⌘W`
+  and `⌘Q` never reach the page, so `webAccelerator` refuses them at mount. The
+  answer is a different chord on the web, not a workaround.
+- **The invoke route carries no trust fence.** It is as reachable as the
+  webserver's bind address, which is loopback on the desktop and may not be
+  under `dsh web`; a plugin registering something destructive should know it.
+- **Three built-ins reach through the DOM.** The settings dialog, its Plugins
+  page and the sidebar's session search have no service to call, so they are
+  driven through framework contracts — `data-slot`, the frame's collapse
+  attributes, ARIA roles. A markup change upstream is a selector this package
+  has to follow.
+- **`items` is composition, not a setting.** Which commands exist, what they
+  read as and who performs them are edited in a profile's `cordis.patch.yml`;
+  the hub offers only `bindings`. Adding a command to the menu is not something
+  a person can do from a panel.
