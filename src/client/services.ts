@@ -9,7 +9,7 @@
  *   with different services. A package compiled OUTSIDE that repository has no
  *   such split, so `ctx.sessions` resolves to whichever declaration the
  *   compiler saw first. Naming the face and resolving it by name is what
- *   `omdsh-justchat` already does for the same reason, and it is fully typed
+ *   `omdsh-chatmode` already does for the same reason, and it is fully typed
  *   downstream either way.
  * - **Optionality.** Every one of these is a service some composition may not
  *   have. `layout` and `sessions` ship with the web app, but `sessionModes`
@@ -19,9 +19,9 @@
  *   list that would keep the whole browser half from mounting.
  *
  * `SessionModes` and `ILayout` are structural mirrors rather than imports, for
- * the same reason `omdsh-code` mirrors the first of them: cordis binds services
- * by name at runtime, so depending on those packages for their `.d.ts` would
- * buy nothing but a version to keep in step.
+ * the same reason `omdsh-codemode` mirrors the first of them: cordis binds
+ * services by name at runtime, so depending on those packages for their `.d.ts`
+ * would buy nothing but a version to keep in step.
  * @module @omdsh-plugins/omdsh-shortcuts/src/client/services
  */
 

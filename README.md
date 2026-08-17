@@ -226,7 +226,7 @@ Three things it settles, so no surface redoes them:
 
 Pair it with `onBindings`: the document is pushed, so the first read is usually
 empty, and a rebinding has to reach the tooltip too. `omdsh-sidepanel`'s two panel
-switches and `omdsh-justchat`'s and `omdsh-code`'s mode segments all do exactly
+switches and `omdsh-chatmode`'s and `omdsh-codemode`'s mode segments all do exactly
 this. `omdsh-sidechat`'s summon icon reaches the same place by the lower road —
 it reads `bindings()` itself and formats the claim, because it wants to know
 WHO holds the chord and not only how to print it.
@@ -342,7 +342,7 @@ Every handler is a quiet no-op when the thing it drives is absent. The mode
 registry belongs to [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base),
 and the segments it holds arrive from the mode plugins: without `omdsh-base`
 there is no registry at all and `⌘1` reaches nothing, and with it but without
-`omdsh-justchat` the registry is simply missing the Chat and Work segments, so
+`omdsh-chatmode` the registry is simply missing the Chat and Work segments, so
 `⌘1` and `⌘2` find nobody to enter. Either way the press should do nothing at
 all — not throw, and not take the whole key listener down with it.
 

@@ -165,7 +165,7 @@ const hint = chord === undefined ? t('files.open') : `${t('files.open')} · ${ch
 - **形态说了算**——桌面端显示原生键 `⌘1`，标签页里显示 `⌥⌘1`，因为那才是各自真正能收到的键。
 - **没有键就返回 `undefined`**——所以 tooltip 落回纯标题，而不是留一个后面什么都没有的分隔符。浏览器占走了键的那些命令，在标签页里就是这个状态。
 
-配合 `onBindings` 使用：文档是推下来的，所以第一次读通常是空的；改绑之后也要跟着变。仓库里 `omdsh-sidepanel` 的两个面板开关、`omdsh-justchat` 与 `omdsh-code` 的模式段都是这么做的。`omdsh-sidechat` 的召唤图标走的是更下面一层的路——它自己读 `bindings()` 再把 claim 格式化出来，因为它要知道的是这个键**由谁**持有，而不只是怎么把它印出来。
+配合 `onBindings` 使用：文档是推下来的，所以第一次读通常是空的；改绑之后也要跟着变。仓库里 `omdsh-sidepanel` 的两个面板开关、`omdsh-chatmode` 与 `omdsh-codemode` 的模式段都是这么做的。`omdsh-sidechat` 的召唤图标走的是更下面一层的路——它自己读 `bindings()` 再把 claim 格式化出来，因为它要知道的是这个键**由谁**持有，而不只是怎么把它印出来。
 
 harness 自己的按钮（New Session、搜索、添加工作区、设置、折叠侧栏）不在其中：它们的 tooltip 组件在本仓库不改的包里。桌面端这些键本来就写在菜单栏上。
 
@@ -223,7 +223,7 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 
 三个例外只能走 DOM：**设置弹窗**、**Plugins 页**、**侧栏搜索框**。它们的开关状态用 harness 自己的话说是 "component-local viewing state"，住在本仓库不会去改的包里。[`src/client/anchors.ts`](src/client/anchors.ts) 写明了为什么这些地址仍然可辩护——用的全是框架保证的契约（每个 slot 出口都会渲染的 `data-slot`、frame 自己的 `data-sidebar-collapsed` / `data-details-collapsed`、以及 `role="dialog"` 这类无障碍属性），而不是 CSS module 的哈希类名、会被本地化的可见文字、或者渲染顺序。唯一绕不开顺序的地方——从设置导航栏里挑出 Plugins 那一行——是从 slot 注册表里读出它的**下标**，所以被匹配的仍然是 id，DOM 只提供位置。
 
-每个 handler 在它要驱动的东西不存在时都是安静的空操作。模式注册表属于 [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base)，里面的各个段落则来自各个模式插件：没装 `omdsh-base` 就根本没有注册表，`⌘1` 谁也够不到；装了 `omdsh-base` 但没装 `omdsh-justchat`，注册表只是少了 Chat 和 Work 两段，`⌘1`、`⌘2` 找不到可进入的对象。两种情况下这次按键都该什么都不发生——不抛异常，也不能把整个按键监听器一起带走。
+每个 handler 在它要驱动的东西不存在时都是安静的空操作。模式注册表属于 [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base)，里面的各个段落则来自各个模式插件：没装 `omdsh-base` 就根本没有注册表，`⌘1` 谁也够不到；装了 `omdsh-base` 但没装 `omdsh-chatmode`，注册表只是少了 Chat 和 Work 两段，`⌘1`、`⌘2` 找不到可进入的对象。两种情况下这次按键都该什么都不发生——不抛异常，也不能把整个按键监听器一起带走。
 
 `panel.files`、`panel.terminal`、`sidechat.open` **不在**这个文件里：这三件事有能自己注册的主人，它们就该自己注册。
 
