@@ -52,7 +52,9 @@ export { commandFor, matchesChord } from './hotkey.ts'
 export { detectSurface } from './surface.ts'
 export { followBindings, parseClientEvent, streamUrl } from './stream.ts'
 export { installFocusReports } from './focus.ts'
-export { installBuiltins, PLUGINS_SECTION_ID, SETTINGS_TRIGGER_SLOT } from './builtins.ts'
+export {
+  installBuiltins, PLUGIN_HUB_TAB_ID, PLUGINS_SECTION_ID, PLUGINS_TAB_SLOT, SETTINGS_TRIGGER_SLOT,
+} from './builtins.ts'
 export { formatAccelerator, isMacPlatform } from '../label.ts'
 export {
   augmentBubble, commandForControl, controlName, createHintBubble, harnessBubble, hintText,
@@ -62,7 +64,8 @@ export {
 } from './hints.ts'
 export { resolveServices, settingsPageIndex, SESSION_MODES, labelIn, type CommandServices, type ILayout, type ILocale, type SessionModes, type SlotEntries } from './services.ts'
 export {
-  buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, sidebarCollapsed, waitFor,
+  buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, settingsTab, settingsTabs,
+  sidebarCollapsed, waitFor,
 } from './anchors.ts'
 export { claimFor, isReservedByBrowser, keyFromCode, parseAccelerator, webAcceleratorFor, type Chord, type ChordClaim, type Surface } from '../chord.ts'
 

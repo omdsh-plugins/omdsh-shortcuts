@@ -17,9 +17,10 @@
  *   service to register with — this one arrives from outside it — so the call
  *   has to be made from somewhere, and here is the only place that knows the
  *   chord was pressed.
- * - **Reachable only through the DOM.** The settings dialog and the sidebar's
- *   session search hold their open state as component-local React state inside
- *   harness packages, which this repository does not edit. See
+ * - **Reachable only through the DOM.** The settings dialog, the page and tab it
+ *   is showing, and the sidebar's session search hold their state as
+ *   component-local React state inside harness packages, which this repository
+ *   does not edit. See
  *   {@link ./anchors.ts} for what makes those addresses defensible; the point
  *   here is that they are confined to three handlers and that each one degrades
  *   to a logged miss rather than a broken page.
@@ -34,12 +35,34 @@
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { UI_COMMANDS } from '../menu.ts'
 import {
-  buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, sidebarCollapsed, waitFor,
+  buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, settingsTab,
+  sidebarCollapsed, waitFor,
 } from './anchors.ts'
-import { settingsPageIndex, type CommandServices } from './services.ts'
+import { settingsPageIndex, type CommandServices, type SlotEntries } from './services.ts'
 
 /** The settings page `settings.plugins` selects, by the id its registrant used. */
 export const PLUGINS_SECTION_ID = 'plugins'
+
+/** The seat the Plugins page's tabs register in. */
+export const PLUGINS_TAB_SLOT = 'settings.plugins.tab'
+
+/**
+ * The tab `settings.plugins` finishes on: the Plugin hub, when the composition
+ * has one.
+ *
+ * The Plugins page is a strip of tabs owned by whoever registered them, and the
+ * shipped pair — Configurable, All — is an inventory. The hub is the page a
+ * person actually goes to Plugins FOR: install, update, uninstall, and the
+ * settings form for every plugin that declared one, this package's own chord
+ * table included. Landing on it is what makes the chord worth a key, and a
+ * composition without `@omdsh-plugins/omdsh-plughub` simply arrives at the
+ * Plugins page and stops there.
+ *
+ * The id is that plugin's `TAB_ID`, copied rather than imported: a cross-plugin
+ * value import is a client-bundle purity error, and a registration id is a wire
+ * name.
+ */
+export const PLUGIN_HUB_TAB_ID = 'omdsh'
 
 /** Where the settings dialog's own trigger lives, so a chord presses what a mouse would. */
 export const SETTINGS_TRIGGER_SLOT = 'settings.trigger'
@@ -68,6 +91,33 @@ async function openSettings(report: Report): Promise<boolean> {
   }
   trigger.click()
   return await waitFor(() => settingsDialog()) !== undefined
+}
+
+/**
+ * Finish a Plugins press on the Plugin hub tab, when this composition has one.
+ *
+ * The registry is asked FIRST, and the DOM only afterwards. That ordering is
+ * what keeps the two outcomes apart: a composition that never registered the
+ * hub is not a fault and must not be reported on every press, while a hub that
+ * IS registered and whose button never rendered is a fault worth a line —
+ * telling them apart from the DOM alone would mean spending the whole
+ * appearance budget to learn which case this is.
+ * @param slots - the slot registry, when this composition has one.
+ * @param report - where a registered tab that never rendered is noted.
+ */
+async function selectPluginHub(slots: SlotEntries | undefined, report: Report): Promise<void> {
+  const registered = slots?.entries(PLUGINS_TAB_SLOT)
+    .some(entry => entry.options.id === PLUGIN_HUB_TAB_ID) ?? false
+  if (!registered) return
+  const tab = await waitFor(() => settingsTab(PLUGIN_HUB_TAB_ID))
+  if (tab === undefined) {
+    report(`settings.plugins: the ${PLUGIN_HUB_TAB_ID} tab is registered but never rendered`)
+    return
+  }
+  // A second press should not move focus off whatever the person is editing in
+  // the hub, and pressing the tab that is already selected would.
+  if (tab.getAttribute('aria-selected') === 'true') return
+  tab.click()
 }
 
 /**
@@ -245,6 +295,7 @@ export function installBuiltins(
       return
     }
     page.click()
+    await selectPluginHub(slots, report)
   })
 
   return () => {

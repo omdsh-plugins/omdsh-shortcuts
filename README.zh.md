@@ -251,7 +251,9 @@ New Session、会话搜索、添加工作区、设置、折叠侧栏，这几个
 
 大多数界面动作背后都有服务可调——`ctx.layout` 管两侧栏，`ctx.sessions` 和 `ctx.workspaces` 管会话与工作区，`omdsh-base` 的 `sessionModes` 管模式切换。harness 没有为它们注册快捷键，是因为 harness 里根本没有快捷键服务可注册——这个服务是从外面来的。所以调用总得有人发起，而知道「键被按了」的只有这里。
 
-三个例外只能走 DOM：**设置弹窗**、**Plugins 页**、**侧栏搜索框**。它们的开关状态用 harness 自己的话说是 "component-local viewing state"，住在本仓库不会去改的包里。[`src/client/anchors.ts`](src/client/anchors.ts) 写明了为什么这些地址仍然可辩护——用的全是框架保证的契约（每个 slot 出口都会渲染的 `data-slot`、frame 自己的 `data-sidebar-collapsed` / `data-details-collapsed`、以及 `role="dialog"` 这类无障碍属性），而不是 CSS module 的哈希类名、会被本地化的可见文字、或者渲染顺序。唯一绕不开顺序的地方——从设置导航栏里挑出 Plugins 那一行——是从 slot 注册表里读出它的**下标**，所以被匹配的仍然是 id，DOM 只提供位置。
+三个例外只能走 DOM：**设置弹窗**、**它当前显示的页和标签页**、**侧栏搜索框**。它们的开关状态用 harness 自己的话说是 "component-local viewing state"，住在本仓库不会去改的包里。[`src/client/anchors.ts`](src/client/anchors.ts) 写明了为什么这些地址仍然可辩护——用的全是框架保证的契约（每个 slot 出口都会渲染的 `data-slot`、frame 自己的 `data-sidebar-collapsed` / `data-details-collapsed`、以及 `role="dialog"` 这类无障碍属性），而不是 CSS module 的哈希类名、会被本地化的可见文字、或者渲染顺序。唯一绕不开顺序的地方——从设置导航栏里挑出 Plugins 那一行——是从 slot 注册表里读出它的**下标**，所以被匹配的仍然是 id，DOM 只提供位置。
+
+**`⌘⇧P` 最后停在插件中心那一页。** Plugins 页本身是一条标签栏，自带的两页——Configurable、All——是一份清单；而插件中心（[`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub)）才是人真正为之打开 Plugins 的那一页：装、更新、卸载，以及每个声明了配置的插件的表单，包括本插件自己那张改键表。所以这次按键先选中那一页，再选中那个标签。标签栏恰好是 DOM 里唯一留下了注册 id 的地方——为了让按钮和面板能按 ARIA 的要求互相指认，section 把每个标签的元素 id 拼成 `` `${useId()}-tab-${id}` ``——所以这个地址比它上面那一行导航更可靠，而不是更脆。至于插件中心在不在，是**先**问 slot 注册表、再看 DOM：没装它的组装停在 Plugins 页，并且什么都不说；只有「注册了却没渲染出来」这一种情况值得往控制台写一行。
 
 每个 handler 在它要驱动的东西不存在时都是安静的空操作。模式注册表属于 [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base)，里面的各个段落则来自各个模式插件：没装 `omdsh-base` 就根本没有注册表，`⌘1` 谁也够不到；装了 `omdsh-base` 但没装 `omdsh-chatmode`，注册表只是少了 Chat 和 Work 两段，`⌘1`、`⌘2` 找不到可进入的对象。两种情况下这次按键都该什么都不发生——不抛异常，也不能把整个按键监听器一起带走。
 
@@ -266,6 +268,8 @@ New Session、会话搜索、添加工作区、设置、折叠侧栏，这几个
 | `items` | 组装层 | profile 的 `cordis.patch.yml` |
 | `bindings` | 使用者 | 设置 → 插件 → 插件中心 |
 | `hints` | 使用者 | 设置 → 插件 → 插件中心 |
+
+最后那一列自己也有一个键：`⌘⇧P`（标签页里是 `⌥⌘P`）打开设置弹窗并停在插件中心，于是改这两个字段的面板，离它所描述的那副键盘只有一个键。
 
 `items` 说的是有哪些命令、显示成什么、进哪个菜单、由谁执行。`bindings` 是盖在它上面的一张扁平 `id → 快捷键` 映射：
 

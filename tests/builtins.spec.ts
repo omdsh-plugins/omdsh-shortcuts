@@ -17,9 +17,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  detailsCollapsed, sidebarCollapsed, buttonAroundSlot, settingsDialog, settingsPages,
+  detailsCollapsed, sidebarCollapsed, buttonAroundSlot, settingsDialog, settingsPages, settingsTab,
 } from '../src/client/anchors.ts'
-import { installBuiltins, PLUGINS_SECTION_ID, type Register, type Report } from '../src/client/builtins.ts'
+import {
+  installBuiltins, PLUGIN_HUB_TAB_ID, PLUGINS_SECTION_ID, PLUGINS_TAB_SLOT,
+  type Register, type Report,
+} from '../src/client/builtins.ts'
 import { settingsPageIndex, type CommandServices, type SlotEntries } from '../src/client/services.ts'
 import { UI_COMMANDS } from '../src/menu.ts'
 
@@ -332,5 +335,120 @@ describe('the settings dialog', () => {
       expect(report).toHaveBeenCalledWith(expect.stringContaining('no plugins settings page'))
     })
     expect(settingsDialog()).toBeDefined()
+  })
+})
+
+describe('the Plugin hub tab', () => {
+  /** Which tabs the press pressed, recorded as each strip renders. */
+  let pressed: string[]
+
+  beforeEach(() => { pressed = [] })
+
+  /** The trigger, the dialog and its rail, all in one — the state before a press. */
+  const shell = (): void => {
+    document.body.innerHTML = `
+      <button id="trigger" aria-haspopup="dialog" aria-expanded="false">
+        <div data-slot="settings.trigger"></div>
+      </button>
+      <div role="dialog" aria-modal="true">
+        <nav><button>General</button><button>Models</button><button>Plugins</button></nav>
+      </div>`
+  }
+
+  /**
+   * The Plugins page's tab strip, as the section composes it.
+   *
+   * The element id is `useId()` + `-tab-` + the registration id, and the
+   * `useId()` half is React's own opaque token — the guillemets are what React
+   * 19 emits — so the spec writes one a lookup must not depend on the shape of.
+   * @param ids - the tab ids, in the order the strip renders them.
+   * @param active - the tab showing, the first by default.
+   */
+  const renderTabs = (ids: string[], active = ids[0]): void => {
+    const buttons = ids.map(id => `
+      <button role="tab" id="«r3»-tab-${id}" aria-controls="«r3»-panel-${id}"
+        aria-selected="${String(id === active)}"></button>`).join('')
+    const dialog = settingsDialog() as HTMLElement
+    dialog.insertAdjacentHTML('beforeend', `<div role="tablist">${buttons}</div>`)
+    // Attached as the strip is built, not after the press: the handler clicks
+    // the tab the moment it appears, so a listener added later would miss it.
+    for (const id of ids) {
+      settingsTab(id)?.addEventListener('click', () => { pressed.push(id) })
+    }
+  }
+
+  /**
+   * A ledger answering both slots the press reads.
+   * @param tabs - the ids registered in the Plugins tab seat.
+   * @returns the registry face.
+   */
+  const ledger = (tabs: string[]): SlotEntries => ({
+    entries: (key: string) => (key === PLUGINS_TAB_SLOT
+      ? tabs.map((id, index) => ({ options: { id, order: index * 10 } }))
+      : [
+        { options: { id: 'general', order: 0 } },
+        { options: { id: 'models', order: 10 } },
+        { options: { id: PLUGINS_SECTION_ID, order: 15 } },
+      ]),
+  })
+
+  it('finishes on the hub rather than the tab the page opened on', async () => {
+    shell()
+    // The strip belongs to the Plugins page, so it appears when that page is
+    // the one showing — which is the wait the press has to make.
+    settingsPages()[2]?.addEventListener('click', () => {
+      renderTabs(['configurable', 'all', PLUGIN_HUB_TAB_ID])
+    })
+    const bench = registry()
+    installBuiltins(bench.register, services({
+      slots: () => ledger(['configurable', 'all', PLUGIN_HUB_TAB_ID]),
+    }), report)
+
+    bench.press(UI_COMMANDS.settingsPlugins)
+    await vi.waitFor(() => { expect(pressed).toEqual([PLUGIN_HUB_TAB_ID]) })
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('stops at the Plugins page, silently, in a composition with no hub', async () => {
+    shell()
+    settingsPages()[2]?.addEventListener('click', () => { renderTabs(['configurable', 'all']) })
+    const bench = registry()
+    installBuiltins(bench.register, services({ slots: () => ledger(['configurable', 'all']) }), report)
+
+    bench.press(UI_COMMANDS.settingsPlugins)
+    await vi.waitFor(() => { expect(document.querySelector('[role="tablist"]')).not.toBeNull() })
+    expect(pressed).toEqual([])
+    // A Plugins page without the hub is a composition choice, not a fault, and
+    // a warning on every press would say otherwise.
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('leaves a hub tab that is already showing alone', async () => {
+    shell()
+    renderTabs(['configurable', 'all', PLUGIN_HUB_TAB_ID], PLUGIN_HUB_TAB_ID)
+    const bench = registry()
+    installBuiltins(bench.register, services({
+      slots: () => ledger(['configurable', 'all', PLUGIN_HUB_TAB_ID]),
+    }), report)
+
+    bench.press(UI_COMMANDS.settingsPlugins)
+    await vi.waitFor(() => { expect(settingsTab(PLUGIN_HUB_TAB_ID)).toBeDefined() })
+    // Pressing the selected tab would pull focus out of whatever the person is
+    // editing in the hub, and select nothing that was not already selected.
+    expect(pressed).toEqual([])
+  })
+
+  it('says so when the hub is registered and its tab never renders', async () => {
+    shell()
+    const bench = registry()
+    installBuiltins(bench.register, services({
+      slots: () => ledger(['configurable', 'all', PLUGIN_HUB_TAB_ID]),
+    }), report)
+
+    bench.press(UI_COMMANDS.settingsPlugins)
+    await vi.waitFor(
+      () => { expect(report).toHaveBeenCalledWith(expect.stringContaining('never rendered')) },
+      { timeout: 4000 },
+    )
   })
 })

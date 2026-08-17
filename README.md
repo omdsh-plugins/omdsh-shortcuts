@@ -375,10 +375,10 @@ registers a shortcut for them because the harness has no shortcut service to
 register with; this one arrives from outside it. So the call has to be made from
 somewhere, and here is the only place that knows the chord was pressed.
 
-Three are reachable only through the DOM: the **settings dialog**, its
-**Plugins page**, and the **sidebar's session search**. Their open state is, in
-the harness's own words, "component-local viewing state", inside packages this
-repository does not edit. [`src/client/anchors.ts`](src/client/anchors.ts)
+Three are reachable only through the DOM: the **settings dialog**, the **page
+and tab it is showing**, and the **sidebar's session search**. Their open state
+is, in the harness's own words, "component-local viewing state", inside packages
+this repository does not edit. [`src/client/anchors.ts`](src/client/anchors.ts)
 records what makes those addresses defensible: every one is a framework
 contract — the `data-slot` every outlet emits, the frame's own
 `data-sidebar-collapsed` / `data-details-collapsed`, and ARIA roles — rather
@@ -386,6 +386,19 @@ than a hashed CSS-module class, localized visible text, or render order. The one
 place order is unavoidable, picking the Plugins row out of the settings nav,
 reads its INDEX from the slot registry, so the id stays the thing being matched
 and the DOM supplies nothing but position.
+
+**`⌘⇧P` finishes on the Plugin hub.** The Plugins page is a strip of tabs, and
+the shipped pair — Configurable, All — is an inventory; the hub
+([`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub)) is the tab a
+person actually goes to Plugins FOR, this package's own chord table included. So
+the press selects the page and then that tab. The strip is the one place the DOM
+keeps the registration id — the section composes each tab's element id as
+`` `${useId()}-tab-${id}` `` so the button and its panel can name each other for
+ARIA — which makes the tab a better address than the nav row above it, not a
+worse one. Whether the hub exists at all is read from the slot registry BEFORE
+the DOM: a composition without it stops at the Plugins page and says nothing,
+and a hub that is registered but never renders is the one case worth a line in
+the console.
 
 Every handler is a quiet no-op when the thing it drives is absent. The mode
 registry belongs to [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base),
@@ -408,6 +421,10 @@ makes the second one editable in a settings panel:
 | `items` | The composition | A profile's `cordis.patch.yml` |
 | `bindings` | The person | Settings → Plugins → Plugin hub |
 | `hints` | The person | Settings → Plugins → Plugin hub |
+
+That last column has a chord of its own: `⌘⇧P` (`⌥⌘P` in a tab) opens the dialog
+and lands on the hub, so the panel these two fields are edited in is one key
+away from the keyboard it describes.
 
 `items` says which commands exist, what they read as, which menu they join, and
 who performs them. `bindings` is a flat map of `id → chord` laid over it:

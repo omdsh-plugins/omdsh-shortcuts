@@ -141,6 +141,39 @@ export function settingsPages(root: Document = document): HTMLElement[] {
 }
 
 /**
+ * The tab strip the Plugins settings page renders, in the order it renders it.
+ *
+ * `role="tab"` is the accessibility contract that says these buttons switch the
+ * page under them, and the Plugins section is the only settings page that
+ * builds one — so this needs no ancestor of its own to scope it.
+ * @param root - the document to search.
+ * @returns the tab buttons, or an empty list while no tabbed page is showing.
+ */
+export function settingsTabs(root: Document = document): HTMLElement[] {
+  const dialog = settingsDialog(root)
+  if (dialog === undefined) return []
+  return [...dialog.querySelectorAll<HTMLElement>('[role="tab"]')]
+}
+
+/**
+ * One tab in that strip, by the id its registrant used.
+ *
+ * Unlike the nav rail, this one keeps the id in the document: the section
+ * composes each tab's element id as `` `${useId()}-tab-${entry.id}` `` and its
+ * `aria-controls` as `` `${useId()}-panel-${entry.id}` ``, because ARIA needs
+ * the button and the panel to name each other. The `useId()` half is React's
+ * and deliberately opaque, so the match is on the suffix — which leaves the
+ * registration id, not a position, as the thing being matched, and makes this a
+ * better address than {@link settingsPages} rather than a worse one.
+ * @param id - the tab's registration id.
+ * @param root - the document to search.
+ * @returns the tab button, or undefined when nothing registered that id.
+ */
+export function settingsTab(id: string, root: Document = document): HTMLElement | undefined {
+  return settingsTabs(root).find(tab => tab.id.endsWith(`-tab-${id}`))
+}
+
+/**
  * Wait for something a press has just asked to appear.
  *
  * A React state change lands on the next paint, so a command that opens the
