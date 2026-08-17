@@ -80,7 +80,10 @@ describe('the client subscription', () => {
   it('hands over the document the moment it opens, so there is no unbound window', async () => {
     const mounted = mount({ items: [BROWSER_ITEM] })
     const client = await subscribe(mounted, 'a')
-    expect(client.received()).toEqual([{ kind: 'bindings', document: { version: 1, items: [BROWSER_ITEM] } }])
+    // The frame carries the hint switch beside the document: a page decides
+    // whether to teach its chords on the buttons from the same event that tells
+    // it what the chords are.
+    expect(client.received()).toEqual([{ kind: 'bindings', document: { version: 1, items: [BROWSER_ITEM] }, hints: true }])
   })
 
   it('refuses a subscriber that did not name itself', async () => {
@@ -203,7 +206,7 @@ describe('unmounting', () => {
 
     mounted.unmount()
 
-    expect(client.received().at(-1)).toEqual({ kind: 'bindings', document: { version: 1, items: [] } })
+    expect(client.received().at(-1)).toEqual({ kind: 'bindings', document: { version: 1, items: [] }, hints: true })
     expect(mounted.routes.size).toBe(0)
   })
 })

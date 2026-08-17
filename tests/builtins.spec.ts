@@ -49,6 +49,7 @@ function services(overrides: Partial<CommandServices> = {}): CommandServices {
     workspaces: () => undefined,
     modes: () => undefined,
     slots: () => undefined,
+    locale: () => undefined,
     ...overrides,
   }
 }

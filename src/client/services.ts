@@ -78,6 +78,26 @@ export interface SlotEntries {
   entries(key: string): readonly { options: { id?: string; order?: number } }[]
 }
 
+/**
+ * As much of the harness's locale registry as a reader of somebody else's
+ * label needs.
+ *
+ * One method, and it is the same door every harness package goes through for
+ * its own words. What this package does with it is unusual and worth naming:
+ * it resolves ANOTHER package's dictionary entry — `sidebar`'s
+ * `session.new.label` — so that a button can be recognized by the accessible
+ * name it is already wearing. See {@link ./hints.ts} for why that is the
+ * address rather than a class name.
+ */
+export interface ILocale {
+  /**
+   * A translate function bound to one namespace.
+   * @param ns - the namespace, e.g. `sidebar`.
+   * @returns the lookup, which reads the active locale at call time.
+   */
+  bind(ns: string): (key: string) => string
+}
+
 /** Service name `@omdsh-plugins/omdsh-base` publishes its mode registry under. */
 export const SESSION_MODES = 'sessionModes'
 
@@ -106,6 +126,8 @@ export interface CommandServices {
   modes: () => SessionModes | undefined
   /** The slot registry, for resolving a settings page's position by its id. */
   slots: () => SlotEntries | undefined
+  /** The dictionary registry, for reading the label a harness button wears. */
+  locale: () => ILocale | undefined
 }
 
 /**
@@ -124,7 +146,23 @@ export function resolveServices(ctx: ClientContext): CommandServices {
     workspaces: () => face<IWorkspaces>(ctx, 'workspaces'),
     modes: () => face<SessionModes>(ctx, SESSION_MODES),
     slots: () => face<SlotEntries>(ctx, 'slots'),
+    locale: () => face<ILocale>(ctx, 'locale'),
   }
+}
+
+/**
+ * Read one of the harness's own labels, in the locale the page is showing.
+ *
+ * Answers undefined rather than a guess when the composition has no locale
+ * service, so a caller matching against it simply matches nothing — which is
+ * the right outcome for a hint, and the wrong one for anything that would act.
+ * @param locale - the dictionary registry, when this composition has one.
+ * @param ns - the owning package's namespace.
+ * @param key - the dictionary key.
+ * @returns the label, or undefined with no registry to ask.
+ */
+export function labelIn(locale: ILocale | undefined, ns: string, key: string): string | undefined {
+  return locale?.bind(ns)(key)
 }
 
 /**

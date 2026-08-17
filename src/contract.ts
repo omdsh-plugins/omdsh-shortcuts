@@ -187,6 +187,21 @@ export interface MenuItem {
   webAccelerator?: string | null
   /** Render as a checkbox whose state the shell owns. */
   checkbox?: boolean
+  /**
+   * A CSS selector for the control this command's chord should be taught on.
+   *
+   * Someone who found a feature with the mouse should be able to stop using the
+   * mouse for it, so the button that performs a command names its chord when it
+   * is hovered. Most buttons need nothing here: a plugin's own control teaches
+   * its chord from inside the plugin (`chordLabel`), and the harness's own
+   * controls are recognized by the browser half's shipped table. This field is
+   * for the third case — a command a COMPOSITION added, pointing at a button
+   * neither of those knows about.
+   *
+   * Ignored by the shell, which renders a menu and has no buttons to hover, and
+   * ignored on any surface where nothing matches it.
+   */
+  anchor?: string
 }
 
 /** Everything one shell needs to build its menu. */
@@ -214,6 +229,16 @@ export interface ClientBindings {
   kind: 'bindings'
   /** The current document; an empty one means this plugin is going away. */
   document: MenuDocument
+  /**
+   * Whether a page should teach its chords on the buttons that perform them.
+   *
+   * Carried here rather than on the document because the document is the
+   * SHELL's — it stays the shape every installed desktop build already parses —
+   * and a native menu has no tooltips to write into. Absent means on: a page
+   * served by a runtime older than this field asks for the behaviour the
+   * setting defaults to.
+   */
+  hints?: boolean
 }
 
 /**

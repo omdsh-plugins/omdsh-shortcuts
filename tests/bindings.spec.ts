@@ -127,7 +127,7 @@ describe('documentFor with bindings', () => {
 
 describe('Config', () => {
   it('resolves an absent section to the shipped behaviour', () => {
-    expect(Config({})).toEqual({ items: [], bindings: {} })
+    expect(Config({})).toEqual({ items: [], bindings: {}, hints: true })
   })
 
   it('hides the item list from a generated form and shows the chords', () => {

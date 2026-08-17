@@ -57,6 +57,15 @@ describe('parseClientEvent', () => {
       .toEqual({ kind: 'bindings', document: { version: 1, items: [] } })
   })
 
+  it('carries the hint switch when the runtime states it, and says nothing when it does not', () => {
+    expect(parseClientEvent(JSON.stringify({ kind: 'bindings', document: { version: 1, items: [] }, hints: false })))
+      .toEqual({ kind: 'bindings', document: { version: 1, items: [] }, hints: false })
+    // A runtime older than the field. Silence is not `false`, and the reader —
+    // not the parser — is what decides what silence means.
+    expect(parseClientEvent(JSON.stringify({ kind: 'bindings', document: { version: 1, items: [] } })))
+      .not.toHaveProperty('hints')
+  })
+
   it('drops a frame kind it does not know, so a newer runtime can add one', () => {
     expect(parseClientEvent(JSON.stringify({ kind: 'something-later', payload: 1 }))).toBeUndefined()
   })
@@ -84,6 +93,20 @@ describe('followBindings', () => {
 
     expect(bindings).toEqual([{ version: 1, items: [] }])
     expect(invoked).toEqual(['ask'])
+  })
+
+  it('resolves a silent runtime to the setting\'s own default, and reports a stated one', () => {
+    const fake = fakeSource()
+    const hints: boolean[] = []
+    followBindings(() => fake.source, 'a', {
+      onBindings: (_document, teach) => hints.push(teach),
+      onInvoke: () => {},
+    })
+
+    fake.emit(JSON.stringify({ kind: 'bindings', document: { version: 1, items: [] } }))
+    fake.emit(JSON.stringify({ kind: 'bindings', document: { version: 1, items: [] }, hints: false }))
+
+    expect(hints).toEqual([true, false])
   })
 
   it('lets one malformed event cost that event and not the subscription', () => {

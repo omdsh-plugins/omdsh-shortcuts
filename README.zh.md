@@ -15,7 +15,8 @@
 | Web 端的页内组合键——那里没有菜单来认领它们 | 浏览器半边自己的按键监听器，按同一份文档绑定本形态的组合键 |
 | 运行时和页面里都有的 `shortcut` 服务 | 两个半边各自 `ctx.reflect.provide('shortcut', …)`：`register`、`bindings()`、`onBindings`、`chordLabel` |
 | 十五个界面命令里的十二个，由它执行 | [`src/client/builtins.ts`](src/client/builtins.ts)，调用 `layout`、`sessions`、`workspaces` 和 `sessionModes`——另外三个属于拥有它们的插件 |
-| 插件中心里的改键表单 | `omdsh-shortcuts` 这个 settings 命名空间：一张扁平的 `id → 组合键` 字典，即时生效 |
+| 每个快捷键都写在执行它的那个按钮的 tooltip 里，harness 自带的按钮也算 | [`src/client/hints.ts`](src/client/hints.ts)：把组合键追加进 `ui-primitives` 本来就会弹出的那块 tooltip；它不弹的地方，由本包自己画一块 |
+| 插件中心里的改键表单 | `omdsh-shortcuts` 这个 settings 命名空间：一张扁平的 `id → 组合键` 字典，加上提示开关，即时生效 |
 
 ## 核心想法
 
@@ -167,12 +168,41 @@ const hint = chord === undefined ? t('files.open') : `${t('files.open')} · ${ch
 
 配合 `onBindings` 使用：文档是推下来的，所以第一次读通常是空的；改绑之后也要跟着变。仓库里 `omdsh-sidepanel` 的两个面板开关、`omdsh-chatmode` 与 `omdsh-codemode` 的模式段都是这么做的。`omdsh-sidechat` 的召唤图标走的是更下面一层的路——它自己读 `bindings()` 再把 claim 格式化出来，因为它要知道的是这个键**由谁**持有，而不只是怎么把它印出来。
 
-harness 自己的按钮（New Session、搜索、添加工作区、设置、折叠侧栏）不在其中：它们的 tooltip 组件在本仓库不改的包里。桌面端这些键本来就写在菜单栏上。
-
 已经自己绑了键的 UI 插件，把键让出来即可——`setSummonChord(null)` 就是这个协议——然后改为注册一个命令。这样一来，不存在两个 handler 抢同一次按键的情况。仓库里有两个现成的例子：
 
 - [`omdsh-sidepanel`](https://github.com/omdsh-plugins/omdsh-sidepanel/blob/HEAD/src/client/shortcut.ts) 把两个面板交出来。它本来就没绑键，所以只是注册。
 - [`omdsh-sidechat`](https://github.com/omdsh-plugins/omdsh-sidechat/blob/HEAD/src/client/shortcut.ts) 交出的是一个**已经在用的**键。它在受限 fiber 里 `setSummonChord(null)` 并注册 `sidechat.open`，然后用 `onBindings` 把文档给这个命令的键读回来喂给 tooltip——交出按键不该意味着不再教人按什么。fiber 卸载时它把内置的 `CmdOrCtrl+L` 还回去，所以移除键盘层不会顺手把召唤功能一起移除。
+
+### harness 自带的按钮，从外面教
+
+New Session、会话搜索、添加工作区、设置、折叠侧栏，这几个按钮做不到上面那件事：它们的组件在本仓库不改的包里，而一个从 harness 外面到来的键盘层，本来就不是它们被写出来时会去问的东西。所以提示由本插件挂上去，鼠标停在上面读到的是 `New session · ⌘K`。
+
+两套机制，用哪一套是当场判断出来的，不是配置出来的：
+
+| harness 自己弹了什么 | 会发生什么 |
+|---|---|
+| 它自己的 tooltip | 组合键**追加**到那一块上——仍然只有一块，位置、动画、边界收拢都由拥有它的代码负责，只是结尾多了 ` · ⌘K` |
+| 什么都没有（设置入口，以及侧栏展开时的 New Session） | 由本插件画一块，样式取自同一套主题变量 |
+
+一次悬停会等 600ms——比 harness 自己的 500ms 悬停延迟更晚——再做判断，所以有 tooltip 的按钮永远是被追加，而不会出现两块。写进去的只有一个追加的元素，绝不改动 React 已经放在那里的文本，那是外部代码写进 React 子树唯一安全的方向。卸载插件时，追加上去的组合键和那块自绘的提示都会一并撤走。
+
+**按钮是靠它本来就戴着的名字被认出来的。**读 `aria-label`，与按钮自己查过的同一条词典项作比较——`locale.bind('sidebar')('session.new.label')`——所以这是在问 harness 自己怎么称呼这个按钮，而不是去刮一个渲染出来的字符串。它天然跟随语言切换；万一某个 key 被改名，代价是提示消失，而不是提示错了。有两个控件的名字不是一条可以查的词典项——设置入口的名字来自一个 slot，设置页那一行的名字来自它自己的注册——它们按 [`src/client/anchors.ts`](src/client/anchors.ts) 一贯的方式定位：设置入口用它内部的 slot 出口，设置对话框的 Plugins 行用 slot 账本里的次序。类名、可见文本、渲染顺序都没有用到。
+
+组合自己加的命令，可以指明它属于哪个按钮，而且这个选择器优先于本包内置的一切：
+
+```yaml
+- id: omdsh-shortcuts
+  config:
+    items:
+      - id: deploy.run
+        label: Deploy
+        section: view
+        command: { kind: runtime }
+        accelerator: CmdOrCtrl+Alt+D
+        anchor: '[data-slot="conversation.session.header.actions"] button'
+```
+
+整套行为就是一个设置项 `hints`，默认开启，即时生效。关掉它，每个组合键照旧绑定，每块 tooltip 也照旧是 harness 自己写的那样。
 
 ## 默认项
 
@@ -234,7 +264,8 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 | 字段 | 归属 | 在哪里改 |
 |---|---|---|
 | `items` | 组装层 | profile 的 `cordis.patch.yml` |
-| `bindings` | 使用者 | 设置 → 插件 → OMDSH 插件 |
+| `bindings` | 使用者 | 设置 → 插件 → 插件中心 |
+| `hints` | 使用者 | 设置 → 插件 → 插件中心 |
 
 `items` 说的是有哪些命令、显示成什么、进哪个菜单、由谁执行。`bindings` 是盖在它上面的一张扁平 `id → 快捷键` 映射：
 
@@ -254,9 +285,11 @@ harness 自己的按钮（New Session、搜索、添加工作区、设置、折�
 
 映射里出现文档中没有的 id 时会被忽略而不是拒绝：item 列表属于组装层，它会变，一条过期的覆盖绝不能让这个插件挂不上去。而解析不了的组合键**会**被拒绝，在那次写入时就拒绝——因为再怎么改 item 列表，`Ctrl+` 也不会变得合法。
 
-这个插件把 `bindings` 注册为 settings 命名空间 `omdsh-shortcuts`（见 [omdsh 插件约定](https://omdsh-plugins.github.io/conventions/#rule-1)），这就是 [`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub) 为它生成配置页所需要的全部。这段注册挂在一个受限 fiber 上，因此一个没有 settings provider 的组装照旧按 entry config 运行。
+`hints` 是使用者拥有的另一个字段：一个开关，默认开启，决定指针停在按钮上时它教不教自己的组合键。它走的是客户端那条流，而不是写在文档里——因为那份文档是**外壳**的，原生菜单把加速键写在菜单项旁边，没有什么 tooltip 需要教。
 
-改绑**即时生效**：文档会被重建并推给已经开着的那几条流，于是每个连着的外壳重建原生菜单、每个连着的页面重绑按键，都不需要重启。
+这个插件把两者一起注册为 settings 命名空间 `omdsh-shortcuts`（见 [omdsh 插件约定](https://omdsh-plugins.github.io/conventions/#rule-1)），这就是 [`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub) 为它生成配置页所需要的全部。这段注册挂在一个受限 fiber 上，因此一个没有 settings provider 的组装照旧按 entry config 运行。
+
+改绑**即时生效**：文档会被重建并推给已经开着的那几条流，于是每个连着的外壳重建原生菜单、每个连着的页面重绑按键、每块写着组合键的 tooltip 改写成新的那个，都不需要重启。
 
 ## 可达性
 
@@ -264,11 +297,23 @@ invoke 路由没有信任围栏。约束它的有两点：只接受已发布文�
 
 ## 安装
 
-它是一个 dsh bundle，不是对 harness 的改动。[`cordis.patch.yml`](cordis.patch.yml) 在 profile 已经组装好的东西之上插入一行：
+它是一个 dsh bundle，不是对 harness 的改动。[`cordis.patch.yml`](cordis.patch.yml) 在 profile 已经组装好的东西之上插入一行。
 
 ```sh
-dsh plugin --profile web add @omdsh-plugins/omdsh-shortcuts
+npx @omdsh-plugins/omdsh-plughub add omdsh-shortcuts
 ```
+
+这就是[插件中心](https://github.com/omdsh-plugins/omdsh-plughub)的安装器，只是入
+口从按钮换成了 argv。它从这套集合的
+[registry](https://github.com/omdsh-plugins/registry) 里解析出这个插件、从它的
+GitHub 仓库装上，并把那条 pnpm 构建白名单写好——裸的 `dsh plugin add github:…`
+会把这一步留给你，而那条记录里带着 pnpm 解析出来的 commit，只能从报错里抄，事先
+写不出来。
+
+`dsh plugin --profile web add @omdsh-plugins/omdsh-shortcuts` 现在**还不是**那条命令：这个
+包不在 npm 上，pnpm 会回 `ERR_PNPM_FETCH_404`。同样这一次安装也可以是一个按钮——
+只要 profile 里已经有插件中心，它就在**设置 → 插件 → 插件中心**里这个插件的卡片
+上。
 
 或者从一份检出安装，改这个插件本身时要的就是这种：
 
@@ -312,4 +357,6 @@ pnpm run check:harness-pin                      # 只要还链着就失败
 - **浏览器保留的组合键给不了标签页。** `⌘N`、`⌘T`、`⌘W`、`⌘Q` 永远到不了页面，所以 `webAccelerator` 在挂载时就会拒绝它们。解法是 Web 端换一个键，而不是想办法绕过去。
 - **invoke 路由没有信任围栏。** 它的可达范围就是 webserver 的监听地址，桌面端是回环，`dsh web` 下则未必；要注册破坏性操作的插件应当知道这一点。
 - **三个内置命令要走 DOM。** 设置弹窗、它的 Plugins 页和侧栏搜索框没有服务可调，只能靠框架保证的契约来驱动——`data-slot`、frame 自己的折叠属性、无障碍 role。上游改了标记，这个包就得跟着改选择器。
-- **`items` 属于组装层，不是一个设置项。** 有哪些命令、显示成什么、由谁执行，都在 profile 的 `cordis.patch.yml` 里改；插件中心只提供 `bindings`。往菜单里加一个命令，不是一个人在面板里能做的事。
+- **挂在 harness 按钮上的提示，是本包在跟随的一个地址。** 有六个控件是靠一条词典 key 或一个 slot id 认出来的，而它们都属于本仓库不改的包。上游随时可能改名；一旦改了，提示就此安静——tooltip 退回 harness 自己写的样子，组合键照样能用，而没有任何地方会说明原因。在内置表跟上之前，菜单项上的 `anchor` 就是应急出口。
+- **只有已经存在按钮的地方，提示才说得出组合键。** 一个在当前形态下没有按钮的命令——Fork Session、Archive Session、在没装模式插件的组装里的模式段——只能由菜单和设置表单来教。
+- **`items` 属于组装层，不是一个设置项。** 有哪些命令、显示成什么、由谁执行、由哪个按钮来教，都在 profile 的 `cordis.patch.yml` 里改；插件中心提供的是 `bindings` 和 `hints`。往菜单里加一个命令，不是一个人在面板里能做的事。

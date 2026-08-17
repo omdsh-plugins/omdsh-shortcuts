@@ -40,6 +40,7 @@ import { formatAccelerator, isMacPlatform } from '../label.ts'
 import { installBuiltins } from './builtins.ts'
 import type { IShortcutClient, ShortcutBinding } from './contract.ts'
 import { installFocusReports } from './focus.ts'
+import { installHints } from './hints.ts'
 import { installHotkey, type BoundChord } from './hotkey.ts'
 import { resolveServices } from './services.ts'
 import { followBindings } from './stream.ts'
@@ -53,7 +54,13 @@ export { followBindings, parseClientEvent, streamUrl } from './stream.ts'
 export { installFocusReports } from './focus.ts'
 export { installBuiltins, PLUGINS_SECTION_ID, SETTINGS_TRIGGER_SLOT } from './builtins.ts'
 export { formatAccelerator, isMacPlatform } from '../label.ts'
-export { resolveServices, settingsPageIndex, SESSION_MODES, type CommandServices, type ILayout, type SessionModes, type SlotEntries } from './services.ts'
+export {
+  augmentBubble, commandForControl, controlName, createHintBubble, harnessBubble, hintText,
+  installHints, matchesAnchor, placeHintBubble,
+  CHORD_ATTRIBUTE, CHORD_SEPARATOR, HARNESS_ANCHORS, HINT_ATTRIBUTE, HINT_DELAY, SIDEBAR_NS, WORKSPACE_NS,
+  type HarnessLabel, type HintAnchor, type HintLookup, type HintsOptions,
+} from './hints.ts'
+export { resolveServices, settingsPageIndex, SESSION_MODES, labelIn, type CommandServices, type ILayout, type ILocale, type SessionModes, type SlotEntries } from './services.ts'
 export {
   buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, sidebarCollapsed, waitFor,
 } from './anchors.ts'
@@ -126,7 +133,11 @@ export function apply(ctx: ClientContext): void {
 
   let items: readonly MenuItem[] = []
   let bound: readonly BoundChord[] = []
+  // Until the first revision lands, the setting's own default: a page that is
+  // still waiting for the document has no reason to have hints off.
+  let hints = true
   const watchers = new Set<() => void>()
+  const services = resolveServices(ctx)
 
   /**
    * Recompute what this page binds.
@@ -215,8 +226,9 @@ export function apply(ctx: ClientContext): void {
   }, 'omdsh-shortcuts: client service')
 
   ctx.effect(() => followBindings(url => new EventSource(url), client, {
-    onBindings: (document: MenuDocument) => {
+    onBindings: (document: MenuDocument, teachChords: boolean) => {
       items = document.items
+      hints = teachChords
       rebind()
       // After the rebind, so a watcher reading `bindings()` from inside the
       // notification sees the state this revision produced rather than the
@@ -250,7 +262,18 @@ export function apply(ctx: ClientContext): void {
   // belong to plugins that can register for themselves, and do.
   ctx.effect(() => installBuiltins(
     service.register,
-    resolveServices(ctx),
+    services,
     (message) => { console.warn(`omdsh-shortcuts: ${message}`) },
   ), 'omdsh-shortcuts: built-in commands')
+
+  // The other half of a keybinding layer: a chord nobody can find is a chord
+  // nobody presses. The plugins' own buttons teach theirs from the inside; this
+  // reaches the harness's, which have no way to ask.
+  ctx.effect(() => installHints(window, {
+    chordLabel: command => service.chordLabel(command),
+    items: () => items,
+    services,
+    root: document,
+    enabled: () => hints,
+  }), 'omdsh-shortcuts: chord hints')
 }

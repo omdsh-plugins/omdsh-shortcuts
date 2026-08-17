@@ -274,10 +274,13 @@ export const Config: Schema<ShortcutConfig, Required<ShortcutConfig>> = Schema.o
     .description('The menu items this plugin publishes; the shipped set when empty.'),
   bindings: Schema.dict(Schema.string()).default({})
     .description('Keyboard shortcut per command id, as an Electron accelerator (for example CmdOrCtrl+Shift+O). An empty value leaves the command on the menu with no key.'),
+  hints: Schema.boolean().default(true)
+    .description('Name each chord in the tooltip of the button that performs it, including the buttons the harness itself renders.'),
 }).i18n({
   zh: {
     items: '本插件发布的菜单项；留空则使用内置的一组。',
     bindings: '每个命令 id 对应的快捷键，写作 Electron accelerator（例如 CmdOrCtrl+Shift+O）。留空表示该命令保留在菜单里但不绑定按键。',
+    hints: '把每个快捷键写进执行该命令的按钮的悬浮提示里，harness 自带的按钮也算。',
   },
 })
 
@@ -302,6 +305,27 @@ export interface ShortcutConfig {
   items?: MenuItem[]
   /** Per-command chord overrides, by item id; an empty value unbinds. */
   bindings?: Record<string, string>
+  /**
+   * Whether a page teaches each chord on the button that performs it.
+   *
+   * A page-only setting — the shell's menu writes its accelerators beside its
+   * items whatever this says — so it travels on the client stream rather than
+   * in the document. On when absent.
+   */
+  hints?: boolean
+}
+
+/**
+ * Whether one configuration asks for chord hints.
+ *
+ * Absent is on: the schema's default is `true`, and a config assembled without
+ * it — a test bench, a composition written before the field existed — means the
+ * same thing as one that never turned it off.
+ * @param config - the plugin's configuration.
+ * @returns whether pages should teach their chords on the buttons.
+ */
+export function hintsFor(config: ShortcutConfig): boolean {
+  return config.hints ?? true
 }
 
 /**
@@ -404,6 +428,7 @@ export function apply(ctx: ShortcutContext, config: ShortcutConfig = {}): void {
   // The routes below close over these bindings rather than over their values,
   // so a handler registered at mount serves the current document.
   let document = documentFor(config)
+  let hints = hintsFor(config)
   let kinds = new Map(document.items.map(item => [item.id, item.command.kind]))
   const subscribers = new Set<Subscriber>()
   const clients = new Set<ClientSubscriber>()
@@ -418,12 +443,17 @@ export function apply(ctx: ShortcutContext, config: ShortcutConfig = {}): void {
    * already bound the old keys. Handlers are untouched — a rebinding changes
    * which key reaches a command, never which code performs it.
    * @param next - the document to publish.
+   * @param nextHints - whether pages should teach their chords on the buttons.
    */
-  const republish = (next: MenuDocument): void => {
+  const republish = (next: MenuDocument, nextHints: boolean): void => {
     document = next
+    hints = nextHints
     kinds = new Map(next.items.map(item => [item.id, item.command.kind]))
+    // The shell gets the bare document it has always got. Hints are a page's
+    // business — a native menu writes its accelerators beside its items and has
+    // no tooltip to teach anything in — so they ride the client frame only.
     for (const subscriber of subscribers) subscriber.send(next)
-    for (const client of clients) client.send({ kind: 'bindings', document: next })
+    for (const client of clients) client.send({ kind: 'bindings', document: next, hints })
   }
 
   /** The client a press should reach: the one whose surface was last in front. */
@@ -592,7 +622,7 @@ export function apply(ctx: ShortcutContext, config: ShortcutConfig = {}): void {
         end: () => { res.end() },
       }
       clients.add(client)
-      client.send({ kind: 'bindings', document })
+      client.send({ kind: 'bindings', document, hints })
       req.on('close', () => { clients.delete(client) })
     },
   }), 'omdsh-shortcuts: client event stream')
@@ -659,7 +689,8 @@ export function apply(ctx: ShortcutContext, config: ShortcutConfig = {}): void {
     })
     const adopt = (): void => {
       try {
-        republish(documentFor(scope.get()))
+        const next = scope.get()
+        republish(documentFor(next), hintsFor(next))
       } catch (error) {
         // `validate` refuses the writes this plugin can see coming; a stored
         // section can still turn unusable underneath one (a profile edit
@@ -682,7 +713,7 @@ export function apply(ctx: ShortcutContext, config: ShortcutConfig = {}): void {
     for (const subscriber of subscribers) subscriber.send(empty)
     subscribers.clear()
     for (const client of clients) {
-      client.send({ kind: 'bindings', document: empty })
+      client.send({ kind: 'bindings', document: empty, hints })
       client.end()
     }
     clients.clear()

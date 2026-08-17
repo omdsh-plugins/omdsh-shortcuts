@@ -20,7 +20,8 @@ harness edit.
 | In-page chords on the web, where there is no menu to claim them | The browser half's own key listener, binding this surface's chords from the same document |
 | The `shortcut` service, in the runtime and in the page alike | `ctx.reflect.provide('shortcut', …)` on both halves: `register`, `bindings()`, `onBindings`, `chordLabel` |
 | Twelve of the fifteen UI commands, performed | [`src/client/builtins.ts`](src/client/builtins.ts), calling `layout`, `sessions`, `workspaces` and `sessionModes` — the other three belong to the plugins that own them |
-| A rebinding form in the plugin hub | The `omdsh-shortcuts` settings namespace: a flat `id → chord` dictionary, applied live |
+| Every chord named in the tooltip of the button that performs it, the harness's own buttons included | [`src/client/hints.ts`](src/client/hints.ts): the chord appended to the tooltip `ui-primitives` already raises, and a plate of this package's own where it raises none |
+| A rebinding form in the plugin hub | The `omdsh-shortcuts` settings namespace: a flat `id → chord` dictionary and the hint switch, applied live |
 
 ## The idea
 
@@ -231,11 +232,6 @@ this. `omdsh-sidechat`'s summon icon reaches the same place by the lower road �
 it reads `bindings()` itself and formats the claim, because it wants to know
 WHO holds the chord and not only how to print it.
 
-The harness's own buttons — New Session, search, add workspace, settings,
-collapse sidebar — are deliberately not among them: their tooltip components
-live in packages this repository does not edit, and on the desktop those chords
-are already written on the menu bar.
-
 A UI plugin that already binds its own key hands it over by unbinding — the
 protocol `setSummonChord(null)` names — and registers a command instead. Between
 the two there is no case where two handlers race for one keystroke. Two worked
@@ -249,6 +245,59 @@ examples ship in this repository:
   giving a key up must not mean it stops being teachable. Unloading the fiber
   gives the built-in `CmdOrCtrl+L` back, so removing a keybinding layer does not
   quietly remove the summon with it.
+
+### The harness's own buttons, taught from outside
+
+New Session, the session search, add workspace, Settings and the sidebar fold
+cannot do any of that for themselves: their components live in packages this
+repository does not edit, and a keybinding layer that arrives from outside the
+harness is exactly the thing they were never written to ask. So this plugin
+hangs the hint on them, and hovering one now reads `New session · ⌘K`.
+
+Two mechanisms, and which one a hover uses is decided rather than configured:
+
+| The harness renders | What happens |
+|---|---|
+| its own tooltip | the chord is APPENDED to it — one plate, placed and animated and clamped by the code that owns it, now ending in ` · ⌘K` |
+| nothing (the Settings trigger, and New Session while the column is wide) | this plugin raises a plate of its own, styled from the same theme variables |
+
+A hover waits 600ms — past the harness's own 500ms hover delay — before it
+decides, so a control that has a tooltip is always augmented and never doubled.
+Only an appended element is ever added, never a change to the text React put
+there, which is the one direction a foreign write into a React subtree is safe
+in. Unmounting the plugin takes the appended chords and the plate away with it.
+
+**A button is recognized by the name it is already wearing.** `aria-label`,
+compared against the same dictionary entry the button resolved it through —
+`locale.bind('sidebar')('session.new.label')` — so this is asking the harness
+what it calls its own button rather than scraping a rendered string. It follows
+a locale switch for free, and a renamed key costs a hint rather than producing a
+wrong one. The two controls whose name is not a dictionary entry to look up —
+the Settings trigger, which names itself from a slot, and a settings page row,
+which names itself from its registration — are addressed the way
+[`src/client/anchors.ts`](src/client/anchors.ts) addresses everything else: the
+Settings trigger through the slot outlet inside it, the settings dialog's
+Plugins row through the slot ledger's ordering. Class names, visible text and
+render order are used nowhere.
+
+A composition that adds a command of its own names the button it belongs to,
+and its selector wins over everything shipped here:
+
+```yaml
+- id: omdsh-shortcuts
+  config:
+    items:
+      - id: deploy.run
+        label: Deploy
+        section: view
+        command: { kind: runtime }
+        accelerator: CmdOrCtrl+Alt+D
+        anchor: '[data-slot="conversation.session.header.actions"] button'
+```
+
+The whole behaviour is one setting, `hints`, on by default and applied live.
+Turning it off leaves every chord bound and every tooltip exactly as the harness
+wrote it.
 
 ## The defaults
 
@@ -357,7 +406,8 @@ makes the second one editable in a settings panel:
 | Field | Owner | Where it is edited |
 |---|---|---|
 | `items` | The composition | A profile's `cordis.patch.yml` |
-| `bindings` | The person | Settings → Plugins → OMDSH Plugins |
+| `bindings` | The person | Settings → Plugins → Plugin hub |
+| `hints` | The person | Settings → Plugins → Plugin hub |
 
 `items` says which commands exist, what they read as, which menu they join, and
 who performs them. `bindings` is a flat map of `id → chord` laid over it:
@@ -391,15 +441,22 @@ composition, it moves, and a stale override must never be able to stop this
 plugin from mounting. A chord that does not parse IS refused, at the write that
 would store it, because no item list makes `Ctrl+` valid later.
 
-This plugin registers `bindings` as the settings namespace `omdsh-shortcuts`
+`hints` is the other field a person owns: a switch, on by default, for whether a
+button teaches its chord when the pointer rests on it. It travels on the client
+stream rather than in the document, because the document is the SHELL's — a
+native menu writes its accelerators beside its items and has no tooltip to
+teach anything in.
+
+This plugin registers both as the settings namespace `omdsh-shortcuts`
 (see [the omdsh conventions](https://omdsh-plugins.github.io/conventions/?lang=en#rule-1)), which is the whole of what
 [`omdsh-plughub`](https://github.com/omdsh-plugins/omdsh-plughub) needs to render it a configuration page.
 The registration rides a scoped fiber, so a composition with no settings
 provider runs on its entry config exactly as before.
 
 A rebinding applies **live**: the document is rebuilt and pushed down the
-streams already open, so every connected shell rebuilds its native menu and
-every connected page rebinds its keys without a restart.
+streams already open, so every connected shell rebuilds its native menu, every
+connected page rebinds its keys, and every tooltip that names a chord names the
+new one — without a restart.
 
 ## Reach
 
@@ -414,11 +471,24 @@ the way [`omdsh-sidepanel`](https://github.com/omdsh-plugins/omdsh-sidepanel/blo
 ## Install
 
 A dsh bundle, not a harness edit. [`cordis.patch.yml`](cordis.patch.yml) adds
-one row over whatever the profile already composed:
+one row over whatever the profile already composed.
 
 ```sh
-dsh plugin --profile web add @omdsh-plugins/omdsh-shortcuts
+npx @omdsh-plugins/omdsh-plughub add omdsh-shortcuts
 ```
+
+That is the [plugin hub](https://github.com/omdsh-plugins/omdsh-plughub)'s
+installer with argv where the button was. It resolves this plugin from the
+collection's [registry](https://github.com/omdsh-plugins/registry), installs it
+from its GitHub repository, and writes the pnpm build-allowlist entry a bare
+`dsh plugin add github:…` would leave to you — the entry carries the commit pnpm
+resolved, so it can be copied out of a failure and never written down in
+advance.
+
+`dsh plugin --profile web add @omdsh-plugins/omdsh-shortcuts` is **not** that command yet:
+this package is not on npm, and pnpm answers `ERR_PNPM_FETCH_404`. The same
+install is also a button, on this plugin's card in **Settings → Plugins → Plugin
+hub**, once the hub itself is in the profile.
 
 Or from a checkout, when you are working on the plugin itself:
 
@@ -491,7 +561,17 @@ on the harness fork's `legacy/all-in-one` branch.
   driven through framework contracts — `data-slot`, the frame's collapse
   attributes, ARIA roles. A markup change upstream is a selector this package
   has to follow.
+- **A hint on a harness button is an address this package follows.** Six
+  controls are recognized by a dictionary key or a slot id belonging to a
+  package this repository does not edit. Either can be renamed upstream, and
+  when one is the hint goes quiet — the tooltip reverts to what the harness
+  wrote, the chord still works, and nothing says why. `anchor` on an item is
+  the escape hatch until the table catches up.
+- **A hint only names the chord where a button already exists.** A command
+  whose behaviour has no button on this surface — Fork Session, Archive
+  Session, the mode segments in a composition without them — is taught by the
+  menu and the settings form alone.
 - **`items` is composition, not a setting.** Which commands exist, what they
-  read as and who performs them are edited in a profile's `cordis.patch.yml`;
-  the hub offers only `bindings`. Adding a command to the menu is not something
-  a person can do from a panel.
+  read as, who performs them and which button teaches them are edited in a
+  profile's `cordis.patch.yml`; the hub offers `bindings` and `hints`. Adding a
+  command to the menu is not something a person can do from a panel.

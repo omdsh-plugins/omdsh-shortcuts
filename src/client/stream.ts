@@ -42,8 +42,10 @@ export interface StreamHandlers {
   /**
    * The document, on connect and on every later revision.
    * @param document - the current bindings; an empty one means the publisher is going away.
+   * @param hints - whether a button that performs a command should teach its
+   * chord; on when the runtime is older than the setting and says nothing.
    */
-  onBindings: (document: MenuDocument) => void
+  onBindings: (document: MenuDocument, hints: boolean) => void
   /**
    * One command, pressed somewhere this page could not hear.
    * @param command - the item's id.
@@ -87,7 +89,14 @@ export function parseClientEvent(payload: string): ClientEvent | undefined {
   if (typeof document !== 'object' || document === null) return undefined
   const shape = document as Record<string, unknown>
   if (typeof shape.version !== 'number' || !Array.isArray(shape.items)) return undefined
-  return { kind: 'bindings', document: document as MenuDocument }
+  return {
+    kind: 'bindings',
+    document: document as MenuDocument,
+    // Absent is not false. A runtime older than this field says nothing about
+    // hints, and the honest reading of silence is the setting's own default —
+    // resolved by the reader below rather than invented here.
+    ...typeof source.hints === 'boolean' ? { hints: source.hints } : {},
+  }
 }
 
 /**
@@ -107,7 +116,7 @@ export function followBindings(open: OpenStream, client: string, handlers: Strea
     const parsed = parseClientEvent(event.data)
     // One malformed event costs that event, not the subscription.
     if (parsed === undefined) return
-    if (parsed.kind === 'bindings') handlers.onBindings(parsed.document)
+    if (parsed.kind === 'bindings') handlers.onBindings(parsed.document, parsed.hints ?? true)
     else handlers.onInvoke(parsed.command)
   })
   return () => { source.close() }
