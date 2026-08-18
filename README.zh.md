@@ -15,6 +15,7 @@
 | Web 端的页内组合键——那里没有菜单来认领它们 | 浏览器半边自己的按键监听器，按同一份文档绑定本形态的组合键 |
 | 运行时和页面里都有的 `shortcut` 服务 | 两个半边各自 `ctx.reflect.provide('shortcut', …)`：`register`、`bindings()`、`onBindings`、`chordLabel` |
 | 十五个界面命令里的十二个，由它执行 | [`src/client/builtins.ts`](src/client/builtins.ts)，调用 `layout`、`sessions`、`workspaces` 和 `sessionModes`——另外三个属于拥有它们的插件 |
+| 新窗口从空白开始 | 浏览器半边花掉 `?new=1`，那是 [`omdsh-desktop`](https://github.com/omdsh-plugins/omdsh-desktop) 给刚打开的窗口带上的地址参数 |
 | 每个快捷键都写在执行它的那个按钮的 tooltip 里，harness 自带的按钮也算 | [`src/client/hints.ts`](src/client/hints.ts)：把组合键追加进 `ui-primitives` 本来就会弹出的那块 tooltip；它不弹的地方，由本包自己画一块 |
 | 插件中心里的改键表单 | `omdsh-shortcuts` 这个 settings 命名空间：一张扁平的 `id → 组合键` 字典，加上提示开关，即时生效 |
 
@@ -42,6 +43,8 @@
 桌面端的组合键是在页面存在之前就被原生认领的，所以一次按键要走完全程：外壳把 id POST 给运行时，运行时再把它交给当前在前台的浏览器客户端。Web 端没有菜单也没有原生认领，页面自己听见自己的按键、自己跑自己的 handler，谁也不用问。
 
 这个差别不是配置项，所以绑定也并非总能通用。**浏览器把 `⌘N`、`⌘T`、`⌘W`、`⌘Q` 留给自己**——页面根本不会被问到，`preventDefault` 也没有东西可拦。`CmdOrCtrl+N` 给 `new-window` 当原生绑定完全没问题，而标签页永远拿不到这个键。
+
+桌面端这个组合键会打开一扇窗口。外壳给它带上 `?new=1`，因为 harness UI 否则会从 origin 级的 localStorage 里恢复上次选中的会话——同一 origin 下每一扇窗共用那一格。本页面在挂载时花掉这个参数：在会话列表到达并打开 history 窗口之前清掉恢复的选择，再从地址里拿掉 `new`，于是**这一扇窗**再刷新就是一次普通的恢复。它不会自己开一场对话；开对话的仍然是 ⌘K。
 
 `webAccelerator` 就是允许两者各说各话的地方：
 
@@ -364,3 +367,4 @@ pnpm run check:harness-pin                      # 只要还链着就失败
 - **挂在 harness 按钮上的提示，是本包在跟随的一个地址。** 有六个控件是靠一条词典 key 或一个 slot id 认出来的，而它们都属于本仓库不改的包。上游随时可能改名；一旦改了，提示就此安静——tooltip 退回 harness 自己写的样子，组合键照样能用，而没有任何地方会说明原因。在内置表跟上之前，菜单项上的 `anchor` 就是应急出口。
 - **只有已经存在按钮的地方，提示才说得出组合键。** 一个在当前形态下没有按钮的命令——Fork Session、Archive Session、在没装模式插件的组装里的模式段——只能由菜单和设置表单来教。
 - **`items` 属于组装层，不是一个设置项。** 有哪些命令、显示成什么、由谁执行、由哪个按钮来教，都在 profile 的 `cordis.patch.yml` 里改；插件中心提供的是 `bindings` 和 `hints`。往菜单里加一个命令，不是一个人在面板里能做的事。
+- **如果本插件挂上时会话列表已经到了，新窗口仍可能先打开上次的会话。** harness 在任何插件运行之前就从 origin 级 localStorage hydrate `dsh.sessions.current`；本包会尽快清掉那个选择，通常赶在 history 拉取之前。若组装把本插件拖到第一次 list 快照之后，上一场对话仍会先打开一会儿。

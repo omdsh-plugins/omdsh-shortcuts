@@ -20,6 +20,7 @@ harness edit.
 | In-page chords on the web, where there is no menu to claim them | The browser half's own key listener, binding this surface's chords from the same document |
 | The `shortcut` service, in the runtime and in the page alike | `ctx.reflect.provide('shortcut', …)` on both halves: `register`, `bindings()`, `onBindings`, `chordLabel` |
 | Twelve of the fifteen UI commands, performed | [`src/client/builtins.ts`](src/client/builtins.ts), calling `layout`, `sessions`, `workspaces` and `sessionModes` — the other three belong to the plugins that own them |
+| A New Window that starts empty | The browser half spending `?new=1`, which [`omdsh-desktop`](https://github.com/omdsh-plugins/omdsh-desktop) puts on the address of a window it just opened |
 | Every chord named in the tooltip of the button that performs it, the harness's own buttons included | [`src/client/hints.ts`](src/client/hints.ts): the chord appended to the tooltip `ui-primitives` already raises, and a plate of this package's own where it raises none |
 | A rebinding form in the plugin hub | The `omdsh-shortcuts` settings namespace: a flat `id → chord` dictionary and the hint switch, applied live |
 
@@ -60,6 +61,14 @@ That difference is not configurable, so bindings are not always transferable
 either. **A browser keeps `⌘N`, `⌘T`, `⌘W` and `⌘Q` for itself** — the page is
 not asked and `preventDefault` has nothing to prevent. `CmdOrCtrl+N` is a
 perfectly good native binding for `new-window` and a key a tab is never handed.
+
+On the desktop that chord opens a window. The shell loads it with `?new=1`
+because the harness UI otherwise restores the last selected conversation from
+origin-wide localStorage — the same cell every window of that origin shares.
+This page spends the parameter on mount: it clears the restored selection
+before the session list arrives and opens a history window, then drops `new`
+from the address so a reload of *this* window is an ordinary restore. It does
+not start a conversation; ⌘K is still what does that.
 
 `webAccelerator` is where the two are allowed to disagree:
 
@@ -592,3 +601,9 @@ on the harness fork's `legacy/all-in-one` branch.
   read as, who performs them and which button teaches them are edited in a
   profile's `cordis.patch.yml`; the hub offers `bindings` and `hints`. Adding a
   command to the menu is not something a person can do from a panel.
+- **A New Window can still restore the last session if this plugin mounts after
+  the list arrives.** The harness hydrates `dsh.sessions.current` from
+  origin-wide localStorage before any plugin runs; this package clears that
+  selection as soon as it can, which is usually before the history pull. A
+  composition that delays this plugin past the first list snapshot will still
+  open the last conversation for a moment.

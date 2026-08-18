@@ -42,6 +42,7 @@ import type { IShortcutClient, ShortcutBinding } from './contract.ts'
 import { installFocusReports } from './focus.ts'
 import { installHints } from './hints.ts'
 import { installHotkey, type BoundChord } from './hotkey.ts'
+import { installFreshSession } from './fresh-session.ts'
 import { resolveServices } from './services.ts'
 import { followBindings } from './stream.ts'
 import { detectSurface } from './surface.ts'
@@ -62,6 +63,10 @@ export {
   CHORD_ATTRIBUTE, CHORD_SEPARATOR, HARNESS_ANCHORS, HINT_ATTRIBUTE, HINT_DELAY, SIDEBAR_NS, WORKSPACE_NS,
   type HarnessLabel, type HintAnchor, type HintLookup, type HintsOptions,
 } from './hints.ts'
+export {
+  installFreshSession, spendFreshSessionParam, wantsFreshSession, NEW_SESSION_PARAM,
+  type HistoryView, type LocationView, type SessionsClear,
+} from './fresh-session.ts'
 export { resolveServices, settingsPageIndex, SESSION_MODES, labelIn, type CommandServices, type ILayout, type ILocale, type SessionModes, type SlotEntries } from './services.ts'
 export {
   buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, settingsTab, settingsTabs,
@@ -141,6 +146,17 @@ export function apply(ctx: ClientContext): void {
   let hints = true
   const watchers = new Set<() => void>()
   const services = resolveServices(ctx)
+  // Before anything else this page does: a New Window is already on the
+  // last session if we wait for the list. `inject` is the late path for a
+  // composition that has not provided `sessions` yet; it is not added to
+  // this plugin's own `inject` list, because a page without a web app
+  // must still mount the rest of the chords.
+  installFreshSession({
+    location,
+    history,
+    sessions: services.sessions,
+    inject: (deps, callback) => { void ctx.inject(deps, () => { callback() }) },
+  })
 
   /**
    * Recompute what this page binds.
