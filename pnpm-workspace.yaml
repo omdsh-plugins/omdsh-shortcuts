@@ -14,3 +14,8 @@ allowBuilds:
   # reaches it at runtime — the browser bundle is rolldown's, and the node half
   # is plain ESM.
   esbuild: true
+
+# Every harness package is pinned to one release this plugin chooses
+# deliberately, so pnpm's release-age gate has nothing left to protect and its
+# generated per-package exclusion list would only churn on every bump.
+minimumReleaseAge: 0
