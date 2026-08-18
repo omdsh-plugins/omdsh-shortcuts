@@ -269,12 +269,31 @@ export interface IShortcut {
  * against. The descriptions are localized here, so no panel needs a dictionary
  * for this plugin's fields.
  */
+/**
+ * One field's title, in both languages.
+ *
+ * `omdsh-plughub` titles a control from `meta.extra.label` when a schema wrote
+ * one and from the property name when it did not — and a property name is an
+ * English identifier, which is how a form in Chinese ends up half translated.
+ * A field that also carries a role declares the same map THROUGH the role:
+ * `role(text, extra)` writes this slot too, and writes `undefined` into it when
+ * called with one argument.
+ * @param en - the English title.
+ * @param zh - the Chinese title.
+ * @returns the metadata payload the hub reads.
+ */
+function label(en: string, zh: string): { label: Record<string, string> } {
+  return { label: { '': en, zh } }
+}
+
 export const Config: Schema<ShortcutConfig, Required<ShortcutConfig>> = Schema.object({
   items: Schema.array(Schema.any()).default([]).hidden()
     .description('The menu items this plugin publishes; the shipped set when empty.'),
   bindings: Schema.dict(Schema.string()).default({})
+    .extra('extra', label('Key bindings', '快捷键绑定'))
     .description('Keyboard shortcut per command id, as an Electron accelerator (for example CmdOrCtrl+Shift+O). An empty value leaves the command on the menu with no key.'),
   hints: Schema.boolean().default(true)
+    .extra('extra', label('Chords in tooltips', '悬浮提示里显示快捷键'))
     .description('Name each chord in the tooltip of the button that performs it, including the buttons the harness itself renders.'),
 }).i18n({
   zh: {

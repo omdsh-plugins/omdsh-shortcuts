@@ -370,7 +370,7 @@ of the posture the rest of this package takes, and worth the explanation:
 
 most UI actions have a service behind them — `ctx.layout` for the columns,
 `ctx.sessions` and `ctx.workspaces` for conversations and projects,
-`omdsh-base`'s `sessionModes` for the switch. Nothing in the harness
+`omdsh-basemode`'s `sessionModes` for the switch. Nothing in the harness
 registers a shortcut for them because the harness has no shortcut service to
 register with; this one arrives from outside it. So the call has to be made from
 somewhere, and here is the only place that knows the chord was pressed.
@@ -401,8 +401,8 @@ and a hub that is registered but never renders is the one case worth a line in
 the console.
 
 Every handler is a quiet no-op when the thing it drives is absent. The mode
-registry belongs to [`omdsh-base`](https://github.com/omdsh-plugins/omdsh-base),
-and the segments it holds arrive from the mode plugins: without `omdsh-base`
+registry belongs to [`omdsh-basemode`](https://github.com/omdsh-plugins/omdsh-basemode),
+and the segments it holds arrive from the mode plugins: without `omdsh-basemode`
 there is no registry at all and `⌘1` reaches nothing, and with it but without
 `omdsh-chatmode` the registry is simply missing the Chat and Work segments, so
 `⌘1` and `⌘2` find nobody to enter. Either way the press should do nothing at
@@ -532,7 +532,7 @@ once, rather than after a request there is nothing left to answer.
 
 **Nothing else has to be installed beside it, and nothing it reaches for is
 required.** The host half injects `webServer` alone and the browser half
-`slots`; every other name it uses — `sessionModes` from `omdsh-base`, the
+`slots`; every other name it uses — `sessionModes` from `omdsh-basemode`, the
 handlers `omdsh-sidepanel` and `omdsh-sidechat` register — is read from inside
 `apply` and answered for when it is missing. A profile with only this plugin
 composes and boots: the menu is there, every chord binds, and the commands whose

@@ -26,7 +26,7 @@
  *   to a logged miss rather than a broken page.
  *
  * Every handler is written to be a no-op when the thing it drives is absent. A
- * composition without `@omdsh-plugins/omdsh-base` has no mode switch, and pressing ⌘1
+ * composition without `@omdsh-plugins/omdsh-basemode` has no mode switch, and pressing ⌘1
  * there should do nothing at all — not throw, and not take the listener down
  * with it.
  * @module @omdsh-plugins/omdsh-shortcuts/src/client/builtins

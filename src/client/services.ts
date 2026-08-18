@@ -13,7 +13,7 @@
  *   downstream either way.
  * - **Optionality.** Every one of these is a service some composition may not
  *   have. `layout` and `sessions` ship with the web app, but `sessionModes`
- *   arrives only with `@omdsh-plugins/omdsh-base`, and a `dsh web` assembled without it
+ *   arrives only with `@omdsh-plugins/omdsh-basemode`, and a `dsh web` assembled without it
  *   must still mount this plugin with the rest of its chords working. So the
  *   resolution is per-press and answers `undefined`, rather than an `inject`
  *   list that would keep the whole browser half from mounting.
@@ -38,7 +38,7 @@ export interface ILayout {
 }
 
 /**
- * As much of `@omdsh-plugins/omdsh-base`'s mode-switch registry as a chord
+ * As much of `@omdsh-plugins/omdsh-basemode`'s mode-switch registry as a chord
  * needs: press a posture, and offer it a New Session first.
  *
  * A NARROWED mirror, deliberately: this package presses postures and never
@@ -98,7 +98,7 @@ export interface ILocale {
   bind(ns: string): (key: string) => string
 }
 
-/** Service name `@omdsh-plugins/omdsh-base` publishes its mode registry under. */
+/** Service name `@omdsh-plugins/omdsh-basemode` publishes its mode registry under. */
 export const SESSION_MODES = 'sessionModes'
 
 /**
@@ -122,7 +122,7 @@ export interface CommandServices {
   sessions: () => ISessions | undefined
   /** The workspace registry, New Session, and archiving. */
   workspaces: () => IWorkspaces | undefined
-  /** The mode switch; absent without `@omdsh-plugins/omdsh-base`. */
+  /** The mode switch; absent without `@omdsh-plugins/omdsh-basemode`. */
   modes: () => SessionModes | undefined
   /** The slot registry, for resolving a settings page's position by its id. */
   slots: () => SlotEntries | undefined
