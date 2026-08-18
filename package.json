@@ -1,7 +1,7 @@
 {
   "name": "@omdsh-plugins/omdsh-shortcuts",
   "description": "Bind a chord to anything the harness can do: a menu the desktop shell renders natively, a switchboard the runtime dispatches through, and an in-page listener for the web — one document, two surfaces",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "license": "MIT",
   "repository": {
