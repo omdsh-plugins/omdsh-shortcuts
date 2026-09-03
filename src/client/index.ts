@@ -33,7 +33,7 @@
  * @module @omdsh-plugins/omdsh-shortcuts/client
  */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { claimFor, parseAccelerator, type Surface } from '../chord.ts'
 import { MENU_INVOKE_PATH, type MenuDocument, type MenuItem } from '../contract.ts'
 import { formatAccelerator, isMacPlatform } from '../label.ts'

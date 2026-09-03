@@ -25,7 +25,9 @@
  * @module @omdsh-plugins/omdsh-shortcuts/src/client/services
  */
 
-import type { ClientContext, ISessions, IWorkspaces } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
 
 /** The panel-transition face `@deepseek-ai/dsh-client-ui-layout` publishes as `layout`. */
 export interface ILayout {
@@ -60,6 +62,23 @@ export interface SessionModes {
    * @returns true when the active segment took it.
    */
   requestNewSession(workspaceId?: string): boolean
+}
+
+/**
+ * As much of ui-workspace's `ctx.uiWorkspace` as a chord needs: New Session
+ * and the Host directory picker, both of which left `IWorkspaces` in 0.1.2.
+ */
+export interface UiWorkspaceLike {
+  /**
+   * Start a New Session and navigate to it.
+   * @param workspaceId - the project the request named, when it named one.
+   */
+  startSession?(workspaceId?: string): void
+  /**
+   * Open the Host's native directory picker.
+   * @returns the chosen path, or null when the person cancelled.
+   */
+  pickDirectory?(): Promise<string | null>
 }
 
 /**
@@ -124,6 +143,11 @@ export interface CommandServices {
   workspaces: () => IWorkspaces | undefined
   /** The mode switch; absent without `@omdsh-plugins/omdsh-basemode`. */
   modes: () => SessionModes | undefined
+  /**
+   * New Session and the native directory picker, published by ui-workspace
+   * since 0.1.2. Absent on a composition that has not loaded that package.
+   */
+  uiWorkspace: () => UiWorkspaceLike | undefined
   /** The slot registry, for resolving a settings page's position by its id. */
   slots: () => SlotEntries | undefined
   /** The dictionary registry, for reading the label a harness button wears. */
@@ -145,6 +169,7 @@ export function resolveServices(ctx: ClientContext): CommandServices {
     sessions: () => face<ISessions>(ctx, 'sessions'),
     workspaces: () => face<IWorkspaces>(ctx, 'workspaces'),
     modes: () => face<SessionModes>(ctx, SESSION_MODES),
+    uiWorkspace: () => face<UiWorkspaceLike>(ctx, 'uiWorkspace'),
     slots: () => face<SlotEntries>(ctx, 'slots'),
     locale: () => face<ILocale>(ctx, 'locale'),
   }

@@ -51,6 +51,7 @@ function services(overrides: Partial<CommandServices> = {}): CommandServices {
     sessions: () => undefined,
     workspaces: () => undefined,
     modes: () => undefined,
+    uiWorkspace: () => undefined,
     slots: () => undefined,
     locale: () => undefined,
     ...overrides,

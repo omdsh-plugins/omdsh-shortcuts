@@ -37,7 +37,7 @@ const root = resolve(import.meta.dirname, '..')
 const PREFIX = 'harness-source'
 
 /** The harness release this plugin is pinned to when it builds from the registry. */
-const HARNESS_VERSION = '0.1.1-rc.2'
+const HARNESS_VERSION = '0.1.2-rc.1'
 
 /**
  * The framework is versioned on its own train, not the harness release's, so
@@ -51,7 +51,9 @@ const SCHEMASTERY_VERSION = '3.18.1'
 /** Every harness package this plugin builds against, and where it lives in a checkout. */
 const HARNESS_PACKAGES: Readonly<Record<string, string>> = {
   '@deepseek-ai/cordis': join('vendor', 'cordis'),
-  '@deepseek-ai/dsh-client-runtime': join('packages', 'client', 'runtime'),
+  '@deepseek-ai/dsh-api-session-controller': join('packages', 'api', 'session-controller'),
+  '@deepseek-ai/dsh-api-workspace-controller': join('packages', 'api', 'workspace-controller'),
+  '@deepseek-ai/dsh-session': join('packages', 'core', 'session'),
   '@deepseek-ai/schemastery': join('vendor', 'schemastery'),
 }
 

@@ -32,7 +32,8 @@
  * @module @omdsh-plugins/omdsh-shortcuts/src/client/builtins
  */
 
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { UI_COMMANDS } from '../menu.ts'
 import {
   buttonAroundSlot, detailsCollapsed, searchToggle, settingsDialog, settingsPages, settingsTab,
@@ -177,12 +178,26 @@ export function installBuiltins(
     // the frame has never heard of. A posture that declines leaves the request
     // to the frame, which is the shipped behaviour.
     if (services.modes()?.requestNewSession() === true) return
+    const ui = services.uiWorkspace()
+    if (typeof ui?.startSession === 'function') {
+      ui.startSession()
+      return
+    }
     const workspaces = services.workspaces()
-    if (workspaces === undefined) {
+    const legacy = workspaces as (IWorkspaces & { startSession?: () => void }) | undefined
+    if (typeof legacy?.startSession === 'function') {
+      legacy.startSession()
+      return
+    }
+    const sessions = services.sessions()
+    if (sessions === undefined) {
       report('session.new: no workspaces service on this surface')
       return
     }
-    workspaces.startSession()
+    void sessions.create().then(
+      (sessionId) => { sessions.open(sessionId) },
+      (reason: unknown) => { report(`session.new: ${String(reason)}`) },
+    )
   })
 
   on(UI_COMMANDS.forkSession, async () => {
@@ -215,7 +230,13 @@ export function installBuiltins(
       report('workspace.add: no workspaces service on this surface')
       return
     }
-    const path = await workspaces.pickDirectory()
+    const pick = services.uiWorkspace()?.pickDirectory
+      ?? (workspaces as IWorkspaces & { pickDirectory?: () => Promise<string | null> }).pickDirectory
+    if (typeof pick !== 'function') {
+      report('workspace.add: no directory picker on this surface')
+      return
+    }
+    const path = await pick()
     // Null is the person cancelling the picker, which is not a failure and gets
     // no report.
     if (path === null) return
